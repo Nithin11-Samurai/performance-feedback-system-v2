@@ -75,9 +75,6 @@ function AppShell() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/skills" element={<Skills />} />
-            <Route path="/certifications" element={<Certifications />} />
-            <Route path="/reviews" element={<Reviews />} />
             <Route path="/notifications" element={<NotificationsCenter />} />
             <Route path="/peer-insights" element={<PeerInsights />} />
             <Route path="/profile" element={<Profile />} />
@@ -90,6 +87,14 @@ function AppShell() {
 
             {/* Admin only */}
             <Route element={<ProtectedRoute allowedRoles={ADMIN_TIER_ROLES} />}>
+              {/* Temporarily restricted to Admin-tier while Skills, Certifications,
+                  and Reviews get reworked — hidden from Employee/Manager for now.
+                  To revert: move these 3 lines back up above this block, and change
+                  their three matching Sidebar.jsx entries back to `roles: null`. */}
+              <Route path="/skills" element={<Skills />} />
+              <Route path="/certifications" element={<Certifications />} />
+              <Route path="/reviews" element={<Reviews />} />
+
               <Route path="/notes" element={<Navigate to="/admin/employees" replace />} />
               <Route path="/admin/employees" element={<AdminEmployees />} />
               <Route path="/admin/cycles" element={<AdminCycles />} />

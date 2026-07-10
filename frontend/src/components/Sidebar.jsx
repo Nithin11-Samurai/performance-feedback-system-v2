@@ -23,9 +23,9 @@ import logo from '../assets/logo-samurai.png';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: null },
-  { to: '/certifications', label: 'Certifications', icon: Award, roles: null },
-  { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: null },
+  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: ADMIN_TIER_ROLES },
+  { to: '/certifications', label: 'Certifications', icon: Award, roles: ADMIN_TIER_ROLES },
+  { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: ADMIN_TIER_ROLES },
   { to: '/peer-insights', label: '360° Feedback', icon: Users2, roles: null },
   { to: '/team', label: 'My Team', icon: Users, roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES] },
   { to: '/admin/employees', label: 'Employees', icon: ShieldCheck, roles: ADMIN_TIER_ROLES },
@@ -92,12 +92,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         }`}
       >
         <div className="flex h-16 items-center gap-2 border-b border-primary-100 px-5 dark:border-primary-900">
-          <img src={logo} alt="Company logo" className="h-9 w-9 flex-shrink-0 rounded-md object-cover" />
-          {!collapsed && (
-            <span className="truncate font-display text-lg font-semibold text-primary-800 dark:text-primary-100">
-              Performance
-            </span>
-          )}
+          {!collapsed && <img src={logo} alt="PinkSamurais" className="h-8 w-auto object-contain" />}
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">{navLinks(undefined, !collapsed)}</nav>
@@ -122,12 +117,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
           <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
           <aside className="relative flex h-full w-64 flex-col bg-surface-light shadow-card dark:bg-surface-dark">
             <div className="flex h-16 items-center justify-between gap-2 border-b border-primary-100 px-5 dark:border-primary-900">
-              <div className="flex items-center gap-2">
-                <img src={logo} alt="Company logo" className="h-9 w-9 rounded-md object-cover" />
-                <span className="font-display text-lg font-semibold text-primary-800 dark:text-primary-100">
-                  Performance
-                </span>
-              </div>
+              <img src={logo} alt="PinkSamurais" className="h-8 w-auto object-contain" />
               <button
                 onClick={onClose}
                 aria-label="Close menu"
