@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-primary-100 dark:border-primary-900;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+
+  /* Visible keyboard focus everywhere — accessibility floor. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid theme('colors.accent.400');
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Module-coded card: a thin left accent border encodes which part of the
+     system the card belongs to (skills / certs / notes / reviews). */
+  .card {
+    @apply bg-surface-light dark:bg-surface-dark rounded-card shadow-card border-l-4 p-5 overflow-hidden
+           transition-shadow duration-200 hover:shadow-card-hover;
+  }
+  .card-skills { @apply border-l-primary-500; }
+  .card-certs { @apply border-l-accent-500; }
+  .card-notes { @apply border-l-slate-400; }
+  .card-reviews { @apply border-l-primary-600; }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium
+           transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700;
+  }
+  .btn-secondary {
+    @apply btn bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-100 dark:hover:bg-primary-900/70;
+  }
+  .btn-danger {
+    @apply btn bg-danger/10 text-danger hover:bg-danger/20;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-primary-200 dark:border-primary-800 bg-surface-light dark:bg-surface-dark
+           px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors;
+  }
+
+  .label {
+    @apply block text-xs font-medium uppercase tracking-wide text-ink-light/60 dark:text-ink-dark/60 mb-1;
+  }
+
+  .data-mono {
+    @apply font-mono text-sm;
+  }
+
+  /* Skeleton loading placeholder — used by <Skeleton /> for premium loading states. */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-primary-100 dark:bg-primary-900/40;
+  }
+}

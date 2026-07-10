@@ -1,0 +1,11 @@
+node_modules/
+.env
+uploads/certificates/*
+!uploads/certificates/.gitkeep
+uploads/internal-notes/*
+!uploads/internal-notes/.gitkeep
+*.log
+npm-debug.log*
+coverage/
+.DS_Store
+dist/
