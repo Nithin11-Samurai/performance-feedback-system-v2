@@ -85,14 +85,24 @@ function AppShell() {
               <Route path="/skills-certs-overview" element={<SkillsCertsOverview />} />
             </Route>
 
-            {/* Admin only */}
-            <Route element={<ProtectedRoute allowedRoles={ADMIN_TIER_ROLES} />}>
-              {/* Temporarily restricted to Admin-tier while Skills, Certifications,
-                  and Reviews get reworked — hidden from Employee/Manager for now.
-                  To revert: move these 3 lines back up above this block, and change
-                  their three matching Sidebar.jsx entries back to `roles: null`. */}
+            {/* Admin + Global Admin only (narrower than the general Admin-tier block below) */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.GLOBAL_ADMIN]} />}>
+              {/* Skills and Certifications are restricted to just these two roles —
+                  System Admin and HR Manager do NOT see these two, unlike everything
+                  else in the Admin-tier block below. To revert to the broader
+                  Admin-tier group, change allowedRoles here to ADMIN_TIER_ROLES, or
+                  to fully re-open these to everyone, move these 2 lines down into
+                  the open block above and set their Sidebar.jsx roles back to null. */}
               <Route path="/skills" element={<Skills />} />
               <Route path="/certifications" element={<Certifications />} />
+            </Route>
+
+            {/* Admin only */}
+            <Route element={<ProtectedRoute allowedRoles={ADMIN_TIER_ROLES} />}>
+              {/* Temporarily restricted to Admin-tier while Reviews gets reworked —
+                  hidden from Employee/Manager for now. To revert: move this line back
+                  up into the open block above, and change its matching Sidebar.jsx
+                  entry back to `roles: null`. */}
               <Route path="/reviews" element={<Reviews />} />
 
               <Route path="/notes" element={<Navigate to="/admin/employees" replace />} />

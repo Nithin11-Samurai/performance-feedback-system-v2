@@ -23,8 +23,8 @@ import logo from '../assets/logo-samurai.png';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: ADMIN_TIER_ROLES },
-  { to: '/certifications', label: 'Certifications', icon: Award, roles: ADMIN_TIER_ROLES },
+  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN] },
+  { to: '/certifications', label: 'Certifications', icon: Award, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN] },
   { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: ADMIN_TIER_ROLES },
   { to: '/peer-insights', label: '360° Feedback', icon: Users2, roles: null },
   { to: '/team', label: 'My Team', icon: Users, roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES] },
