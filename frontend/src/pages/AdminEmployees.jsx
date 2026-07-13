@@ -1485,7 +1485,7 @@ showToast("Delete failed","error");
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-<div className="grid grid-cols-1 gap-6 lg:grid-cols-[400px_1fr]">      {/* Populated from the managed catalog (Settings page) — referenced by
+<div className="grid grid-cols-1 gap-6 lg:grid-cols-[460px_1fr]">   {/* Populated from the managed catalog (Settings page) — referenced by
           `list=` on the department/job-title inputs below and in OverviewTab,
           regardless of component nesting (datalist lookup is DOM-global). */}
       <datalist id="dept-catalog-list">
@@ -1626,7 +1626,7 @@ Delete Selected
   </button>
                   <button
   onClick={() => setSelected(emp)}
-  className={`flex w-full items-center gap-2 rounded-xl border px-4 py-4 transition-all duration-200 ${
+  className={`flex flex-1 items-center gap-4 rounded-xl border px-4 py-4 transition-all duration-200 ${
   selected?.id === emp.id
     ? "border-primary-300 bg-primary-50 shadow-md"
     : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
@@ -1639,7 +1639,7 @@ Delete Selected
       firstName={emp.first_name}
       lastName={emp.last_name}
       avatarUrl={emp.avatar_url}
-      size={34}
+      size={40}
       onUploaded={(updated) => {
         setEmployees(prev =>
           prev.map(x => (x.id === updated.id ? updated : x))
@@ -1651,8 +1651,8 @@ Delete Selected
       }}
     />
 
-    <div className="min-w-0">
-      <p className="truncate font-semibold leading-5">
+<div className="min-w-0 flex-1">     
+   <p className="truncate font-semibold leading-5">
         {emp.first_name} {emp.last_name}
       </p>
 
