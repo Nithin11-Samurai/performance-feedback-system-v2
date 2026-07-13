@@ -58,6 +58,19 @@ module.exports = {
     fromName: process.env.SMTP_FROM_NAME || 'Performance Feedback System',
   },
 
+  // Microsoft 365 / Outlook mail via Graph API (preferred over SMTP AUTH
+  // for M365 tenants — many tenants now disable per-mailbox SMTP AUTH by
+  // default, and Graph is Microsoft's recommended path for app sending).
+  // If these are all set, emailService.js uses Graph and ignores the SMTP
+  // block above entirely. Leave any of these blank to fall back to SMTP.
+  msGraph: {
+    tenantId: process.env.MS_GRAPH_TENANT_ID,
+    clientId: process.env.MS_GRAPH_CLIENT_ID,
+    clientSecret: process.env.MS_GRAPH_CLIENT_SECRET,
+    senderEmail: process.env.MS_GRAPH_SENDER_EMAIL,
+    fromName: process.env.SMTP_FROM_NAME || 'PinkSamurais',
+  },
+
   uploads: {
     dir: process.env.UPLOAD_DIR || 'uploads',
     maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB, 10) || 5,
