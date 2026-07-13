@@ -1632,27 +1632,24 @@ Delete Selected
     : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
 }`}
 >
-  <div className="flex items-center gap-4">
-
-    <AvatarUpload
-      userId={emp.id}
-      firstName={emp.first_name}
-      lastName={emp.last_name}
-      avatarUrl={emp.avatar_url}
-      size={40}
-      onUploaded={(updated) => {
-        setEmployees(prev =>
-          prev.map(x => (x.id === updated.id ? updated : x))
-        );
-
-        if (selected?.id === updated.id) {
-          setSelected(updated);
-        }
-      }}
+<div className="grid grid-cols-[40px_1fr] items-center gap-4 w-full">
+  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 overflow-hidden">
+  {emp.avatar_url ? (
+    <img
+      src={emp.avatar_url}
+      alt={`${emp.first_name} ${emp.last_name}`}
+      className="h-full w-full object-cover"
     />
+  ) : (
+    <>
+      {emp.first_name?.[0]}
+      {emp.last_name?.[0]}
+    </>
+  )}
+</div>
 
-<div className="min-w-0 flex-1">     
-   <p className="truncate font-semibold leading-5">
+<div className="min-w-0">
+     <p className="truncate font-semibold leading-5">
         {emp.first_name} {emp.last_name}
       </p>
 
