@@ -1500,47 +1500,29 @@ showToast("Delete failed","error");
       </datalist>
 
       <div className="card card-reviews h-fit">
-       <div className="mb-5">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="font-display text-base font-semibold">Directory</h3>
+          <button
+            className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-105 hover:shadow-md"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus size={16} />
+            New Employee
+          </button>
+        </div>
 
-  <div className="flex items-center justify-between">
-
-    <h3 className="font-display text-base font-semibold">
-      Directory
-    </h3>
-
-   <button
-  className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-105 hover:shadow-md"
-  onClick={() => setCreateOpen(true)}
->
-  <Plus size={16} />
-  New Employee
-</button>
-
-  </div>
-
-<div className="mt-4 flex flex-wrap gap-3">
-    {canDelete && (
-      <button
-        className="btn-secondary text-xs"
-        onClick={() => setRecentlyDeletedOpen(true)}
-      >
-        <Trash2 size={14} />
-        Recently Deleted
-      </button>
-    )}
-
-    <button
-className="btn-secondary text-xs px-3"
-      onClick={() => setBulkUploadOpen(true)}
-    >
-      <UploadCloud size={14} />
-      Bulk Upload
-    </button>
-
-  </div>
-
-</div>
-
+        <div className="mb-3 flex gap-1.5">
+          {canDelete && (
+            <button className="btn-secondary flex-1 text-xs" onClick={() => setRecentlyDeletedOpen(true)}>
+              <Trash2 size={14} />
+              Recently Deleted
+            </button>
+          )}
+          <button className="btn-secondary flex-1 text-xs" onClick={() => setBulkUploadOpen(true)}>
+            <UploadCloud size={14} />
+            Bulk Upload
+          </button>
+        </div>
         <div className="relative mb-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-light/40" />
           <input
@@ -1856,4 +1838,3 @@ permissions and internal notes.
     </div>
   );
 }
-//comment
