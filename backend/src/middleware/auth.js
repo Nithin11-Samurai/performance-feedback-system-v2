@@ -34,7 +34,7 @@ const authenticate = asyncHandler(async (req, res, next) => {
   // Re-fetch the user so role changes / deactivation take effect immediately
   // rather than waiting for the token to expire.
   const user = await userModel.findById(payload.sub);
-  if (!user || !user.is_active) {
+  if (!user || !user.is_active || user.deleted_at) {
     throw AppError.unauthorized('Account not found or deactivated');
   }
 

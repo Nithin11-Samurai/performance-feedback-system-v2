@@ -37,6 +37,9 @@ router.post('/bulk-upload', authorize(...ADMIN_TIER_ROLES), uploadBulkEmployeeSh
 // Feature 8: global search — fixed path, admin/manager only (enforced in service).
 router.get('/search/global', userController.globalSearch);
 
+// Item 5: Recently Deleted list — fixed path, HR Manager/Global Admin only.
+router.get('/deleted', authorize(ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN), userController.listDeletedEmployees);
+
 // --- Parameterized routes ---
 
 router.get('/:userId/direct-reports', userIdParamValidator, validate, userController.getDirectReportsOf);
@@ -62,6 +65,24 @@ router.patch(
   userIdParamValidator,
   validate,
   userController.reactivateUser
+);
+
+// Item 5: soft delete + restore — narrower than Admin-tier, HR
+// Manager/Global Admin only, per the request.
+router.delete(
+  '/:userId',
+  authorize(ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN),
+  userIdParamValidator,
+  validate,
+  userController.deleteEmployee
+);
+
+router.patch(
+  '/:userId/restore',
+  authorize(ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN),
+  userIdParamValidator,
+  validate,
+  userController.restoreEmployee
 );
 
 router.post(

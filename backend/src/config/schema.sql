@@ -524,3 +524,11 @@ ALTER TABLE peer_review_assignments ADD CONSTRAINT peer_review_assignments_revie
 -- are no longer written by new submissions but are left in place for any
 -- old rows that already used them.
 ALTER TABLE peer_insight_feedback ADD COLUMN IF NOT EXISTS category_scores JSONB;
+
+-- Item 5: soft-delete for employee records. A deleted employee's row
+-- (and everything referencing it — feedback, skills, notes, etc.) stays
+-- fully intact; deleted_at just makes it invisible to normal listings so
+-- it can be restored later with everything exactly as it was.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at);

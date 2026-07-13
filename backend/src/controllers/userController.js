@@ -67,6 +67,24 @@ const reactivateUser = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'User reactivated', data: { user: updated } });
 });
 
+// DELETE /api/users/:userId  (soft delete - recoverable, Item 5)
+const deleteEmployee = asyncHandler(async (req, res) => {
+  const deleted = await userService.deleteEmployee(req.user, req.params.userId, getRequestMeta(req));
+  res.json({ success: true, message: 'Employee moved to Recently Deleted', data: { user: deleted } });
+});
+
+// PATCH /api/users/:userId/restore
+const restoreEmployee = asyncHandler(async (req, res) => {
+  const restored = await userService.restoreEmployee(req.user, req.params.userId, getRequestMeta(req));
+  res.json({ success: true, message: 'Employee restored', data: { user: restored } });
+});
+
+// GET /api/users/deleted
+const listDeletedEmployees = asyncHandler(async (req, res) => {
+  const users = await userService.listDeletedEmployees(req.user);
+  res.json({ success: true, data: { users } });
+});
+
 // POST /api/users/:userId/avatar  (multipart/form-data, field: avatarFile)
 const uploadAvatar = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -110,6 +128,9 @@ module.exports = {
   updateUser,
   deactivateUser,
   reactivateUser,
+  deleteEmployee,
+  restoreEmployee,
+  listDeletedEmployees,
   uploadAvatar,
   removeAvatar,
   bulkAssignManager,

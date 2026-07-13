@@ -56,12 +56,16 @@ async function register(payload) {
   });
 
   const tokens = await issueTokenPair(user);
+  await sendWelcomeEmail(user);
   return { user, ...tokens };
 }
 
 async function login(email, password) {
   const userWithPassword = await userModel.findByEmail(email);
   if (!userWithPassword) {
+    throw AppError.unauthorized('Invalid email or password');
+  }
+  if (userWithPassword.deleted_at) {
     throw AppError.unauthorized('Invalid email or password');
   }
   if (!userWithPassword.is_active) {
@@ -243,6 +247,44 @@ async function resetPasswordWithOtp(email, otp, newPassword, requestMeta = {}) {
   await auditLog.record(userId, 'PASSWORD_CHANGED', 'user', userId, { method: 'forgot-password-otp' }, requestMeta);
 }
 
+/**
+ * Item 2: sent right after an employee account is created (single create
+ * or bulk upload), so the new hire gets a real email with a link to set
+ * their own password, instead of relying on HR to communicate a temp
+ * password out-of-band. Reuses the same token mechanism as forgot-password
+ * (password_reset_tokens), just with a longer expiry and welcome-toned
+ * copy — the /reset-password page handles either link identically.
+ */
+async function sendWelcomeEmail(user) {
+  const crypto = require('crypto');
+  const passwordResetModel = require('../models/passwordResetModel');
+  const emailService = require('./emailService');
+  const { buildEmailHtml } = require('../utils/emailTemplate');
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days — welcome link, not an urgent reset
+  await passwordResetModel.create(user.id, token, expiresAt);
+
+  const setupLink = `${config.clientUrl}/reset-password?token=${token}`;
+  const html = buildEmailHtml({
+    title: 'Welcome to the team',
+    greeting: `Hi ${user.first_name},`,
+    bodyHtml: `<p>An account has been created for you. Click below to set your own password and get started — this link is valid for 7 days.</p>`,
+    fields: { Email: user.email, 'Employee Code': user.employee_code },
+    ctaLabel: 'Set your password',
+    ctaLink: setupLink,
+  });
+
+  // Best-effort — a welcome email failing to send shouldn't block the
+  // employee record from being created.
+  try {
+    await emailService.sendMail(user.email, 'Welcome — set up your account', html);
+  } catch (err) {
+    const logger = require('../utils/logger');
+    logger.error('Failed to send welcome email', { userId: user.id, error: err.message });
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -254,4 +296,5 @@ module.exports = {
   requestPasswordResetOtp,
   verifyPasswordResetOtp,
   resetPasswordWithOtp,
+  sendWelcomeEmail,
 };

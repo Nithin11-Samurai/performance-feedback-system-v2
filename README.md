@@ -128,7 +128,31 @@ This uses `concurrently` to boot both servers with labeled, color-coded output.
 
 **AI summaries (Claude):** set `ANTHROPIC_API_KEY` in `backend/.env`. Without it, the "Generate" button in the UI returns a clear message explaining the feature isn't configured yet -- it won't crash anything. When configured, summaries now include: Overall Assessment, Key Strengths, Areas for Growth/Weaknesses, Notable Patterns, Promotion Readiness, Training Recommendations, and Overall Sentiment.
 
-**Email notifications & password reset:** set the `SMTP_*` variables in `backend/.env`. Without them, notifications still appear in-app (the bell icon); emails are logged to the server console instead of sent. This includes the "Forgot Password" email link.
+**Email notifications & password reset:** two ways to actually send mail — the app tries Microsoft Graph first, then falls back to SMTP, then falls back to logging emails to the server console (nothing crashes either way; notifications still appear in-app via the bell icon regardless).
+
+*Option A — Microsoft 365 / Outlook via Graph API (recommended if your domain's mail runs on M365):*
+
+Many M365 tenants now disable per-mailbox SMTP AUTH by default, so this is the more reliable path. Setup happens once, in the Azure Portal:
+
+1. **Azure Portal → Azure Active Directory → App registrations → New registration.** Name it anything (e.g. "PinkSamurais HR App"). Leave redirect URI blank — this app never signs a user in interactively.
+2. Open the app you just created → **API permissions → Add a permission → Microsoft Graph → Application permissions** (not Delegated) → search for and add **Mail.Send**.
+3. Still on API permissions, click **Grant admin consent** for your organization (requires a Global Admin or Exchange Admin account — this step can't be skipped or done later by a non-admin).
+4. Go to **Certificates & secrets → New client secret**. Copy the secret's **value** immediately — Azure only shows it once.
+5. From the app's **Overview** page, copy the **Application (client) ID** and **Directory (tenant) ID**.
+6. Decide which mailbox emails should send *from* (e.g. `noreply@pinksamurais.com` — this mailbox needs to actually exist).
+7. Set these in `backend/.env` (or your host's environment variables):
+   ```
+   MS_GRAPH_TENANT_ID=<Directory (tenant) ID>
+   MS_GRAPH_CLIENT_ID=<Application (client) ID>
+   MS_GRAPH_CLIENT_SECRET=<the secret value from step 4>
+   MS_GRAPH_SENDER_EMAIL=noreply@pinksamurais.com
+   ```
+
+Optional but recommended once this is working: in Exchange Online PowerShell, scope the app's Mail.Send permission down to just the one sending mailbox with `New-ApplicationAccessPolicy`, rather than leaving it able to send as any mailbox in the tenant (the app registration permission alone doesn't grant this restriction by default).
+
+*Option B — plain SMTP (Gmail, SendGrid, Mailgun, or M365 SMTP AUTH if enabled for the mailbox):* set the `SMTP_*` variables in `backend/.env`. Only used if the `MS_GRAPH_*` variables above aren't all set.
+
+This includes the "Forgot Password" email link, the OTP-based reset code, and the welcome email sent when an employee account is created (single or bulk upload).
 
 **Review deadline reminders:** runs automatically via a daily cron job (09:00 server time) once the backend is running — no configuration needed. Reminds anyone with pending feedback in a cycle closing within 3 days.
 

@@ -45,6 +45,22 @@ export async function reactivateUser(userId) {
   return data.data.user;
 }
 
+// Item 5: soft delete + restore
+export async function deleteEmployee(userId) {
+  const { data } = await api.delete(`/users/${userId}`);
+  return data.data.user;
+}
+
+export async function restoreEmployee(userId) {
+  const { data } = await api.patch(`/users/${userId}/restore`);
+  return data.data.user;
+}
+
+export async function listDeletedEmployees() {
+  const { data } = await api.get('/users/deleted');
+  return data.data.users;
+}
+
 export async function listDepartments() {
   const { data } = await api.get('/users/meta/departments');
   return data.data.departments;

@@ -34,7 +34,7 @@ export default {
           900: '#4a2e02',
         },
         paper: {
-          light: '#fff8fc',
+          light: '#ffffff',
           dark: '#1a0e16',
         },
         surface: {

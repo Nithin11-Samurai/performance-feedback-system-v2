@@ -6,6 +6,10 @@
  * etc.) unchanged, per the instruction not to remove existing functionality.
  */
 const dashboardModel = require('../models/dashboardModel');
+const feedbackModel = require('../models/feedbackModel');
+const notificationModel = require('../models/notificationModel');
+const peerInsightModel = require('../models/peerInsightModel');
+const { FEEDBACK_TYPE } = require('../config/constants');
 
 async function getAdminSummary(filters = {}) {
   const { department, cycleId: cycleOverride } = filters;
@@ -87,9 +91,26 @@ async function getEmployeeSummary(employeeUser) {
   const targetCycle = await dashboardModel.getTargetCycle();
   const ratingHistory = await dashboardModel.getMyRatingHistory(employeeUser.id);
 
+  // Item 3: replaces the Skills/Certifications counts on the employee
+  // dashboard (no longer relevant now that those pages are Admin-only)
+  // with things the employee can actually act on.
+  let selfReviewPending = false;
+  if (targetCycle && targetCycle.status === 'active') {
+    const selfReview = await feedbackModel.findByKey(targetCycle.id, employeeUser.id, employeeUser.id, FEEDBACK_TYPE.SELF);
+    selfReviewPending = !selfReview || selfReview.status !== 'submitted';
+  }
+
+  const pending360Assignments = await peerInsightModel.listAllPendingAssignmentsForReviewer(employeeUser.id);
+  const unreadNotifications = await notificationModel.countUnread(employeeUser.id);
+
   return {
     targetCycle,
     ratingHistory,
+    pendingActions: {
+      selfReviewPending,
+      pending360Count: pending360Assignments.length,
+    },
+    unreadNotifications,
   };
 }
 

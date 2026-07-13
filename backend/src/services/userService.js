@@ -286,6 +286,67 @@ async function globalSearch(requesterUser, term) {
   throw AppError.forbidden('You do not have permission to search employees');
 }
 
+const DELETE_CAPABLE_ROLES = [ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN];
+
+function assertCanDelete(requesterUser) {
+  if (!DELETE_CAPABLE_ROLES.includes(requesterUser.role)) {
+    throw AppError.forbidden('Only HR Manager or Global Admin can delete employee records');
+  }
+}
+
+/**
+ * Item 5: soft-delete. Nothing referencing this employee is touched —
+ * restoring later brings back everything exactly as it was.
+ */
+async function deleteEmployee(requesterUser, targetUserId, requestMeta = {}) {
+  assertCanDelete(requesterUser);
+  if (requesterUser.id === targetUserId) {
+    throw AppError.badRequest('You cannot delete your own account');
+  }
+  const target = await userModel.findById(targetUserId);
+  if (!target) {
+    throw AppError.notFound('User not found');
+  }
+  if (target.deleted_at) {
+    throw AppError.badRequest('This employee has already been deleted');
+  }
+
+  const deleted = await userModel.softDelete(targetUserId, requesterUser.id);
+  await auditLog.record(
+    requesterUser.id,
+    'DELETE_USER',
+    'user',
+    targetUserId,
+    { employeeCode: target.employee_code, email: target.email },
+    requestMeta
+  );
+  return deleted;
+}
+
+async function restoreEmployee(requesterUser, targetUserId, requestMeta = {}) {
+  assertCanDelete(requesterUser);
+  const target = await userModel.findDeletedById(targetUserId);
+  if (!target) {
+    throw AppError.notFound('This employee is not in the Recently Deleted list');
+  }
+
+  const restored = await userModel.restore(targetUserId);
+  await auditLog.record(
+    requesterUser.id,
+    'RESTORE_USER',
+    'user',
+    targetUserId,
+    { employeeCode: target.employee_code, email: target.email },
+    requestMeta
+  );
+  return restored;
+}
+
+async function listDeletedEmployees(requesterUser) {
+  assertCanDelete(requesterUser);
+  return userModel.listDeleted();
+}
+
 module.exports = {
   canViewProfile,
   getProfile,
@@ -299,4 +360,7 @@ module.exports = {
   removeAvatar,
   bulkAssignManager,
   globalSearch,
+  deleteEmployee,
+  restoreEmployee,
+  listDeletedEmployees,
 };

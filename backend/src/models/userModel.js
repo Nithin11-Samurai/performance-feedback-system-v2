@@ -10,7 +10,7 @@ const PUBLIC_COLUMNS = `
   id, employee_code, first_name, last_name, email, role, job_title,
   department, manager_id, date_of_joining, is_active, avatar_url,
   phone, address, emergency_contact_name, emergency_contact_phone,
-  created_at, updated_at
+  deleted_at, deleted_by, created_at, updated_at
 `;
 
 async function findByEmail(email) {
@@ -90,7 +90,7 @@ async function updatePassword(id, passwordHash) {
 }
 
 async function listAll({ role, department, managerId, search, limit = 50, offset = 0 } = {}) {
-  const conditions = [];
+  const conditions = ['deleted_at IS NULL'];
   const values = [];
   let idx = 1;
 
@@ -115,7 +115,7 @@ async function listAll({ role, department, managerId, search, limit = 50, offset
     idx += 1;
   }
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
   values.push(limit, offset);
 
   const result = await query(
@@ -127,7 +127,7 @@ async function listAll({ role, department, managerId, search, limit = 50, offset
 }
 
 async function countAll({ role, department, managerId, search } = {}) {
-  const conditions = [];
+  const conditions = ['deleted_at IS NULL'];
   const values = [];
   let idx = 1;
 
@@ -152,7 +152,7 @@ async function countAll({ role, department, managerId, search } = {}) {
     idx += 1;
   }
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
   const result = await query(`SELECT COUNT(*)::int AS count FROM users ${whereClause}`, values);
   return result.rows[0].count;
 }
@@ -164,6 +164,7 @@ async function countAll({ role, department, managerId, search } = {}) {
  */
 async function globalSearch(term, { managerId, limit = 20 } = {}) {
   const conditions = [
+    `u.deleted_at IS NULL`,
     `(u.employee_code ILIKE $1
       OR u.first_name ILIKE $1
       OR u.last_name ILIKE $1
@@ -201,7 +202,10 @@ async function globalSearch(term, { managerId, limit = 20 } = {}) {
 }
 
 async function getDirectReports(managerId) {
-  const result = await query(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE manager_id = $1 ORDER BY first_name`, [managerId]);
+  const result = await query(
+    `SELECT ${PUBLIC_COLUMNS} FROM users WHERE manager_id = $1 AND deleted_at IS NULL ORDER BY first_name`,
+    [managerId]
+  );
   return result.rows;
 }
 
@@ -217,6 +221,50 @@ async function bulkAssignManager(employeeIds, managerId) {
   return result.rows;
 }
 
+/**
+ * Item 5: soft-delete. Nothing referencing this user is touched — their
+ * feedback, skills, certifications, notes, etc. all stay exactly as they
+ * are. Restoring just clears deleted_at/deleted_by, and everything is
+ * back to normal.
+ */
+async function softDelete(id, deletedBy) {
+  const result = await query(
+    `UPDATE users SET deleted_at = NOW(), deleted_by = $2
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING ${PUBLIC_COLUMNS}`,
+    [id, deletedBy]
+  );
+  return result.rows[0] || null;
+}
+
+async function restore(id) {
+  const result = await query(
+    `UPDATE users SET deleted_at = NULL, deleted_by = NULL
+     WHERE id = $1 AND deleted_at IS NOT NULL
+     RETURNING ${PUBLIC_COLUMNS}`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+/** The "Recently Deleted" list — most recently deleted first. */
+async function listDeleted() {
+  const result = await query(
+    `SELECT u.*, d.first_name AS deleted_by_first_name, d.last_name AS deleted_by_last_name
+     FROM users u
+     LEFT JOIN users d ON d.id = u.deleted_by
+     WHERE u.deleted_at IS NOT NULL
+     ORDER BY u.deleted_at DESC`
+  );
+  return result.rows.map(({ password_hash, ...rest }) => rest);
+}
+
+/** Used to confirm a specific user is actually in the trash before restoring/purging. */
+async function findDeletedById(id) {
+  const result = await query('SELECT * FROM users WHERE id = $1 AND deleted_at IS NOT NULL', [id]);
+  return result.rows[0] || null;
+}
+
 module.exports = {
   findByEmail,
   findById,
@@ -230,4 +278,8 @@ module.exports = {
   getDirectReports,
   bulkAssignManager,
   globalSearch,
+  softDelete,
+  restore,
+  listDeleted,
+  findDeletedById,
 };

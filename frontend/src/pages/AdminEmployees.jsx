@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   Search,
   Plus,
@@ -22,6 +23,7 @@ import {
   Upload,
   FileDown,
   FileSpreadsheet,
+  RotateCcw,
   UploadCloud,
   Send,
   UserPlus,
@@ -176,6 +178,71 @@ function BulkUploadModal({ open, onClose, onDone }) {
   );
 }
 
+function RecentlyDeletedModal({ open, onClose, onRestored }) {
+  const { showToast } = useToast();
+  const [deleted, setDeleted] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
+
+  useEffect(() => {
+    if (open) {
+      setDeleted(null);
+      userService.listDeletedEmployees().then(setDeleted).catch(() => setDeleted([]));
+    }
+  }, [open]);
+
+  async function handleRestore(employee) {
+    setRestoringId(employee.id);
+    try {
+      await userService.restoreEmployee(employee.id);
+      showToast(`${employee.first_name} restored`);
+      setDeleted((prev) => prev.filter((e) => e.id !== employee.id));
+      onRestored?.();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to restore employee.', 'error');
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Recently deleted" size="lg">
+      {deleted === null ? (
+        <Skeleton className="h-32 w-full" />
+      ) : deleted.length === 0 ? (
+        <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+          No deleted employees — anyone deleted will show up here so it can be undone.
+        </p>
+      ) : (
+        <ul className="max-h-96 space-y-2 overflow-y-auto">
+          {deleted.map((e) => (
+            <li
+              key={e.id}
+              className="flex items-center justify-between rounded-md border border-primary-50 p-3 text-sm dark:border-primary-900/50"
+            >
+              <div>
+                <p className="font-medium">
+                  {e.first_name} {e.last_name}
+                </p>
+                <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                  {e.email} · Deleted {new Date(e.deleted_at).toLocaleDateString()}
+                  {e.deleted_by_first_name && ` by ${e.deleted_by_first_name} ${e.deleted_by_last_name}`}
+                </p>
+              </div>
+              <button
+                onClick={() => handleRestore(e)}
+                disabled={restoringId === e.id}
+                className="btn-secondary text-xs"
+              >
+                <RotateCcw size={13} /> {restoringId === e.id ? 'Restoring…' : 'Restore'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
 const emptyNewUser = {
   employeeCode: '',
   firstName: '',
@@ -219,7 +286,11 @@ function formatDate(d) {
 
 // --- Tab: Overview (profile edit form + activate/deactivate) -------------
 
-function OverviewTab({ employee, managers, onUpdated }) {
+function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
+  const { user: currentUser } = useAuth();
+  const canDelete = [ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN].includes(currentUser.role);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { showToast } = useToast();
   const [editForm, setEditForm] = useState({
     employeeCode: employee.employee_code || '',
@@ -278,6 +349,20 @@ function OverviewTab({ employee, managers, onUpdated }) {
       onUpdated(updated);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to update status.', 'error');
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await userService.deleteEmployee(employee.id);
+      showToast(`${employee.first_name} moved to Recently Deleted`);
+      setConfirmDelete(false);
+      onDeleted(employee.id);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to delete employee.', 'error');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -422,6 +507,30 @@ function OverviewTab({ employee, managers, onUpdated }) {
         }
         confirmLabel={employee.is_active ? 'Deactivate' : 'Reactivate'}
         danger={employee.is_active}
+      />
+
+      {canDelete && (
+        <div className="card card-reviews flex items-center justify-between border-l-4 border-danger">
+          <div>
+            <p className="text-sm font-medium">Delete employee</p>
+            <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+              Moves {employee.first_name} to Recently Deleted — nothing is permanently lost, and this can be undone
+              from there.
+            </p>
+          </div>
+          <button onClick={() => setConfirmDelete(true)} className="btn-danger text-xs">
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        title="Delete employee"
+        message={`Delete ${employee.first_name} ${employee.last_name}? They'll be moved to Recently Deleted, where this can be undone. They will not be able to log in while deleted.`}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
       />
     </div>
   );
@@ -1113,7 +1222,7 @@ function ReviewersTab({ employee }) {
 
 // --- Modern tabbed employee profile ----------------------------------------
 
-function EmployeeDetail({ employee, managers, onUpdated }) {
+function EmployeeDetail({ employee, managers, onUpdated, onDeleted }) {
   const [tab, setTab] = useState('overview');
 
   return (
@@ -1158,7 +1267,7 @@ function EmployeeDetail({ employee, managers, onUpdated }) {
         ))}
       </div>
 
-      {tab === 'overview' && <OverviewTab employee={employee} managers={managers} onUpdated={onUpdated} />}
+      {tab === 'overview' && <OverviewTab employee={employee} managers={managers} onUpdated={onUpdated} onDeleted={onDeleted} />}
       {tab === 'skills' && <SkillsTab employeeId={employee.id} />}
       {tab === 'certifications' && <CertificationsTab employeeId={employee.id} />}
       {tab === 'history' && <PerformanceHistoryTab employeeId={employee.id} />}
@@ -1195,6 +1304,9 @@ export default function AdminEmployees() {
   const [selected, setSelected] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [recentlyDeletedOpen, setRecentlyDeletedOpen] = useState(false);
+  const { user: currentUser } = useAuth();
+  const canDelete = [ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN].includes(currentUser.role);
   const [newUser, setNewUser] = useState(emptyNewUser);
   const [creating, setCreating] = useState(false);
   const [checkedIds, setCheckedIds] = useState([]);
@@ -1283,6 +1395,11 @@ export default function AdminEmployees() {
     setEmployees((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
   }
 
+  function handleDeleted(deletedId) {
+    setSelected(null);
+    setEmployees((prev) => prev.filter((e) => e.id !== deletedId));
+  }
+
   function toggleChecked(id) {
     setCheckedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
@@ -1325,6 +1442,11 @@ export default function AdminEmployees() {
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="font-display text-base font-semibold">Directory</h3>
           <div className="flex gap-1.5">
+            {canDelete && (
+              <button className="btn-secondary text-xs" onClick={() => setRecentlyDeletedOpen(true)}>
+                <Trash2 size={14} /> Recently Deleted
+              </button>
+            )}
             <button className="btn-secondary text-xs" onClick={() => setBulkUploadOpen(true)}>
               <UploadCloud size={14} /> Bulk upload
             </button>
@@ -1465,7 +1587,7 @@ export default function AdminEmployees() {
       </div>
 
       {selected ? (
-        <EmployeeDetail employee={selected} managers={managers} onUpdated={handleUpdated} />
+        <EmployeeDetail employee={selected} managers={managers} onUpdated={handleUpdated} onDeleted={handleDeleted} />
       ) : (
         <div className="card card-reviews flex items-center justify-center py-16 text-sm text-ink-light/50 dark:text-ink-dark/50">
           Select an employee to view their full profile.
@@ -1571,6 +1693,11 @@ export default function AdminEmployees() {
       </Modal>
 
       <BulkUploadModal open={bulkUploadOpen} onClose={() => setBulkUploadOpen(false)} onDone={load} />
+      <RecentlyDeletedModal
+        open={recentlyDeletedOpen}
+        onClose={() => setRecentlyDeletedOpen(false)}
+        onRestored={load}
+      />
 
       <Modal open={bulkAssignOpen} onClose={() => setBulkAssignOpen(false)} title={`Bulk assign manager (${checkedIds.length} selected)`}>
         <div className="space-y-4">

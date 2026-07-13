@@ -28,8 +28,16 @@ const pool = new Pool({
   // self-signed-style pooler certs.
   ssl: config.db.connectionString ? { rejectUnauthorized: false } : false,
   max: 20, // max simultaneous clients
-  idleTimeoutMillis: 30000,
+  // Item 4: lowered from 30s. Managed poolers (Supabase's pgbouncer-style
+  // pooler especially) can silently drop idle connections from their side
+  // well before our own idleTimeoutMillis would recycle them, leaving a
+  // stale connection in our pool that only fails on the NEXT query — which
+  // is exactly the "works, then hangs, then works again after a refresh"
+  // pattern. Recycling more aggressively on our end reduces how often we
+  // hand out a connection the pooler has already killed.
+  idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 5000,
+  keepAlive: true,
 });
 
 pool.on('error', (err) => {
@@ -37,19 +45,47 @@ pool.on('error', (err) => {
   logger.error('Unexpected PostgreSQL pool error', { error: err.message });
 });
 
+// Error codes/messages that indicate the connection itself died rather
+// than a real query problem — safe to silently retry once on a fresh
+// connection, since the query never actually ran against the database.
+const TRANSIENT_CONNECTION_ERRORS = [
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EPIPE',
+  'Connection terminated unexpectedly',
+  'terminating connection due to administrator command',
+];
+
+function isTransientConnectionError(err) {
+  const text = `${err.code || ''} ${err.message || ''}`;
+  return TRANSIENT_CONNECTION_ERRORS.some((marker) => text.includes(marker));
+}
+
 /**
  * Run a single query against the pool.
  * @param {string} text - SQL text with $1, $2... placeholders
  * @param {Array} params - parameter values
  */
-async function query(text, params) {
+async function query(text, params, _isRetry = false) {
   const start = Date.now();
-  const result = await pool.query(text, params);
-  const duration = Date.now() - start;
-  if (duration > 200) {
-    logger.warn('Slow query detected', { text, duration, rows: result.rowCount });
+  try {
+    const result = await pool.query(text, params);
+    const duration = Date.now() - start;
+    if (duration > 200) {
+      logger.warn('Slow query detected', { text, duration, rows: result.rowCount });
+    }
+    return result;
+  } catch (err) {
+    if (!_isRetry && isTransientConnectionError(err)) {
+      // Item 4: the connection died before the query could run (stale
+      // pooled connection, brief network blip) — retry once on a fresh
+      // connection rather than failing the request. If this ALSO fails,
+      // it's a real problem and we let the error propagate normally.
+      logger.warn('Transient DB connection error, retrying once', { error: err.message });
+      return query(text, params, true);
+    }
+    throw err;
   }
-  return result;
 }
 
 /**

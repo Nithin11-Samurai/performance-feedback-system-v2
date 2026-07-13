@@ -11,7 +11,15 @@ import { triggerGlobalLoaderShow, triggerGlobalLoaderHide } from '../utils/loade
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const api = axios.create({ baseURL: API_BASE_URL });
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  // Item 4: without a timeout, a slow/cold-starting backend leaves a
+  // request pending indefinitely with zero feedback to the user — this
+  // is exactly what "the page is stuck" looks like. 25s comfortably
+  // covers a Render free-tier cold start while still eventually giving
+  // up instead of hanging forever.
+  timeout: 25000,
+});
 
 /**
  * "Remember me" support: when checked, tokens persist in localStorage
@@ -93,6 +101,18 @@ api.interceptors.response.use(
 
     if (originalRequest?.showGlobalLoader) {
       triggerGlobalLoaderHide();
+    }
+
+    // Item 4: no response at all (timeout, connection refused, DNS blip -
+    // classic symptoms of a backend that's mid cold-start) gets ONE
+    // automatic retry after a short pause, before we give up and surface
+    // an error. This runs before the 401 check since there's no
+    // response/status to check yet in this case.
+    const isNetworkLevelFailure = !error.response && (error.code === 'ECONNABORTED' || error.message === 'Network Error');
+    if (isNetworkLevelFailure && originalRequest && !originalRequest._networkRetry) {
+      originalRequest._networkRetry = true;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return api(originalRequest);
     }
 
     if (error.response?.status !== 401 || originalRequest._retry || originalRequest.url?.includes('/auth/refresh')) {

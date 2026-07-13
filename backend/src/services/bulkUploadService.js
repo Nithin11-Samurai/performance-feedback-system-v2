@@ -9,6 +9,7 @@
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const userModel = require('../models/userModel');
+const authService = require('./authService');
 const { hashPassword } = require('../utils/password');
 const auditLog = require('../utils/auditLog');
 const AppError = require('../utils/AppError');
@@ -124,6 +125,10 @@ async function bulkCreateUsers(requesterUser, fileBuffer) {
         managerId,
         dateOfJoining,
       });
+
+      // Item 2: same welcome email as single-employee creation, so bulk
+      // upload doesn't leave new hires without a way to set their password.
+      await authService.sendWelcomeEmail(user);
 
       created.push({
         row: rowNumber,
