@@ -79,3 +79,22 @@
     @apply animate-pulse rounded-md bg-primary-100 dark:bg-primary-900/40;
   }
 }
+@keyframes employeeFade {
+
+from{
+opacity:0;
+transform:translateY(10px);
+}
+
+to{
+opacity:1;
+transform:translateY(0);
+}
+
+}
+
+.employee-detail{
+
+animation:employeeFade .25s ease-out;
+
+}

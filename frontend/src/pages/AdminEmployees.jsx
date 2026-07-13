@@ -511,7 +511,10 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
       />
 
       {canDelete && (
-        <div className="card card-reviews flex items-center justify-between border-l-4 border-danger">
+        <div className="card card-reviews flex items-center justify-between rounded-xl
+border
+border-danger/30
+bg-danger/5">
           <div>
             <p className="text-sm font-medium">Delete employee</p>
             <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
@@ -763,7 +766,7 @@ function InternalNotesTab({ employee }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="relative sm:col-span-1">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-light/40" />
-          <input className="input pl-9" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input h-11 rounded-xl pl-10 shadow-sm" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
@@ -1228,38 +1231,59 @@ function EmployeeDetail({ employee, managers, onUpdated, onDeleted }) {
 
   return (
     <div className="space-y-4">
-      <div className="card card-reviews flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <AvatarUpload
-            userId={employee.id}
-            firstName={employee.first_name}
-            lastName={employee.last_name}
-            avatarUrl={employee.avatar_url}
-            onUploaded={onUpdated}
-            size={64}
-          />
-          <div>
-            <h3 className="font-display text-lg font-semibold">
-              {employee.first_name} {employee.last_name}
-            </h3>
-            <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">
-              {employee.job_title || 'N/A'} · {employee.department || 'N/A'}
-            </p>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge tone={employee.is_active ? 'success' : 'danger'}>{employee.is_active ? 'Active' : 'Deactivated'}</Badge>
-              <Badge tone="primary">{roleLabel(employee.role)}</Badge>
-            </div>
-          </div>
+<div className="card card-reviews rounded-2xl border border-primary-100 shadow-sm">
+
+  <div className="flex flex-wrap items-center justify-between gap-6">
+
+    <div className="flex items-center gap-5">
+
+      <AvatarUpload
+        ...
+        size={72}
+      />
+
+      <div>
+
+        <h2 className="font-display text-2xl font-bold">
+          {employee.first_name} {employee.last_name}
+        </h2>
+
+        <p className="mt-1 text-sm text-ink-light/60">
+          {employee.job_title || "No designation"}
+        </p>
+
+        <p className="text-sm text-ink-light/50">
+          {employee.department || "No department"}
+        </p>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+
+          <Badge tone={employee.is_active ? "success" : "danger"}>
+            {employee.is_active ? "🟢 Active" : "🔴 Inactive"}
+          </Badge>
+
+          <Badge tone="primary">
+            {roleLabel(employee.role)}
+          </Badge>
+
         </div>
-        <ExportButtons userId={employee.id} employeeName={`${employee.first_name}_${employee.last_name}`} />
+
       </div>
+
+    </div>
+
+    <ExportButtons ... />
+
+  </div>
+
+</div>
 
       <div className="flex gap-1 overflow-x-auto rounded-full bg-primary-50/60 p-1 dark:bg-primary-900/30">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors ${
               tab === key ? 'bg-primary-600 text-white' : 'text-ink-light/70 hover:bg-white/60 dark:text-ink-dark/70'
             }`}
           >
@@ -1420,6 +1444,41 @@ export default function AdminEmployees() {
       setBulkAssigning(false);
     }
   }
+  async function handleBulkDelete() {
+
+if(!checkedIds.length) return;
+
+const ok=window.confirm(
+
+`Delete ${checkedIds.length} employees?`
+
+);
+
+if(!ok) return;
+
+try{
+
+await Promise.all(
+
+checkedIds.map(id=>userService.deleteEmployee(id))
+
+);
+
+showToast(`${checkedIds.length} employees deleted`);
+
+setCheckedIds([]);
+
+load();
+
+}
+
+catch{
+
+showToast("Delete failed","error");
+
+}
+
+}
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -1483,7 +1542,7 @@ className="btn-secondary text-xs px-3"
         <div className="relative mb-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-light/40" />
           <input
-            className="input pl-9"
+            className="input h-11 rounded-xl pl-10 shadow-sm"
             placeholder="Search employees…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1526,6 +1585,14 @@ className="btn-secondary text-xs px-3"
               <button className="text-ink-light/50 hover:underline dark:text-ink-dark/50" onClick={() => setCheckedIds([])}>
                 Clear
               </button>
+              <button
+className="text-danger hover:underline"
+onClick={handleBulkDelete}
+>
+
+Delete Selected
+
+</button>
             </div>
           </div>
         )}
@@ -1550,8 +1617,8 @@ className="btn-secondary text-xs px-3"
                   </button>
                   <button
                     onClick={() => setSelected(emp)}
-                    className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm ${
-                      selected?.id === emp.id ? 'bg-primary-700 text-white' : 'hover:bg-primary-50 dark:hover:bg-primary-900/40'
+                    className={`flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 transition-all duration-200 hover:-translate-y-[1px] hover:border-primary-200 hover:bg-primary-50 hover:shadow-md ${
+                      selected?.id === emp.id ? 'bg-primary-600 text-white shadow-lg ring-2 ring-primary-200' : 'hover:bg-primary-50 dark:hover:bg-primary-900/40'
                     }`}
                   >
                     <AvatarUpload
@@ -1613,9 +1680,27 @@ className="btn-secondary text-xs px-3"
       {selected ? (
         <EmployeeDetail employee={selected} managers={managers} onUpdated={handleUpdated} onDeleted={handleDeleted} />
       ) : (
-        <div className="card card-reviews flex items-center justify-center py-16 text-sm text-ink-light/50 dark:text-ink-dark/50">
-          Select an employee to view their full profile.
-        </div>
+        <div className="flex h-full items-center justify-center">
+
+<div className="text-center">
+
+<div className="mb-5 text-7xl">
+👤
+</div>
+
+<h2 className="text-xl font-bold">
+Select an Employee
+</h2>
+
+<p className="mt-3 max-w-md text-sm text-ink-light/50">
+Choose an employee from the directory to view their
+profile, skills, certifications, review history,
+permissions and internal notes.
+</p>
+
+</div>
+
+</div>
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add new employee">
