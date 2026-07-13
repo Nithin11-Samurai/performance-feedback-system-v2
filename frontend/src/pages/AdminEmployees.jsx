@@ -849,7 +849,7 @@ function InternalNotesTab({ employee }) {
           </div>
           <div>
             <label className="label">Attachment (optional)</label>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-4 py-3 text-sm text-ink-light/60 hover:bg-primary-50 dark:border-primary-800 dark:text-ink-dark/60 dark:hover:bg-primary-900/30">
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary-300 px-4 py-4 text-sm text-ink-light/60 hover:bg-primary-50 dark:border-primary-800 dark:text-ink-dark/60 dark:hover:bg-primary-900/30">
               <Upload size={16} />
               {file ? file.name : 'Attach a file'}
               <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -1609,14 +1609,14 @@ Delete Selected
           <>
 <ul className="max-h-[55vh] space-y-3 overflow-y-auto pr-2">
                 {employees.map((emp) => (
-                <li key={emp.id} className="flex items-center gap-2">
+                <li key={emp.id} className="flex items-center gap-1">
 
   <button
     onClick={(e) => {
       e.stopPropagation();
       toggleChecked(emp.id);
     }}
-    className="mr-2 flex h-5 w-5 items-center justify-center rounded hover:bg-primary-100"
+   className="mr-1 flex h-5 w-5 items-center justify-center rounded hover:bg-primary-100"
   >
     {checkedIds.includes(emp.id) ? (
       <CheckSquare size={18} />
@@ -1626,7 +1626,7 @@ Delete Selected
   </button>
                   <button
   onClick={() => setSelected(emp)}
-  className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 transition-all duration-200 ${
+  className={`flex w-full items-center gap-2 rounded-xl border px-4 py-4 transition-all duration-200 ${
   selected?.id === emp.id
     ? "border-primary-300 bg-primary-50 shadow-md"
     : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
@@ -1657,12 +1657,12 @@ Delete Selected
       </p>
 
       <p
-        className={`truncate text-sm ${
-          selected?.id === emp.id
-            ? "text-primary-100"
-            : "text-ink-light/55"
-        }`}
-      >
+         className={`truncate text-sm ${
+    selected?.id === emp.id
+      ? "text-primary-700 font-medium"
+      : "text-ink-light/55"
+  }`}
+>
         {emp.job_title || roleLabel(emp.role)}
       </p>
     </div>
