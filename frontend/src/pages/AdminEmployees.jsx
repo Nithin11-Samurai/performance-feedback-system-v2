@@ -1634,17 +1634,15 @@ Delete Selected
                         if (selected?.id === updated.id) setSelected(updated);
                       }}
                     />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="truncate font-medium">
-                          {emp.first_name} {emp.last_name}
-                        </p>
-                        {!emp.is_active && <span className="flex-shrink-0 text-xs text-danger">Inactive</span>}
-                      </div>
-                      <p className={`truncate text-xs ${selected?.id === emp.id ? 'text-primary-100' : 'text-ink-light/50 dark:text-ink-dark/50'}`}>
-                        {emp.job_title || roleLabel(emp.role)}
-                      </p>
-                    </div>
+                 <div className="flex-1 min-w-0">
+    <h4 className="truncate font-semibold text-sm">
+        {emp.first_name} {emp.last_name}
+    </h4>
+
+    <p className="truncate text-xs text-gray-500">
+        {emp.job_title || roleLabel(emp.role)}
+    </p>
+</div>
                   </button>
                 </li>
               ))}
@@ -1654,7 +1652,7 @@ Delete Selected
             </ul>
 
             {/* Pagination controls */}
-            <div className="mt-3 flex items-center justify-between border-t border-primary-50 pt-3 text-xs dark:border-primary-900/50">
+            <div className="mt-3 flex items-center gap-3 w-full border-t border-primary-50 pt-3 text-xs dark:border-primary-900/50">
               <span className="text-ink-light/50 dark:text-ink-dark/50">
                 {total === 0 ? '0 results' : `${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, total)} of ${total}`}
               </span>
