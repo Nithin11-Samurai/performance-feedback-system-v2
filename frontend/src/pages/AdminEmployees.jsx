@@ -27,6 +27,7 @@ import {
   UploadCloud,
   Send,
   UserPlus,
+  Trash2,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useToast } from '../context/ToastContext';

@@ -29,12 +29,16 @@ const logger = require('../utils/logger');
 
 let msalClient = null;
 let cachedGraphToken = null; // { value, expiresAt }
-
 function isGraphConfigured() {
-  const g = config.msGraph;
-  return !!(g.tenantId && g.clientId && g.clientSecret && g.senderEmail);
-}
+  const g = config.msGraph ?? {};
 
+  return Boolean(
+    g.tenantId &&
+    g.clientId &&
+    g.clientSecret &&
+    g.senderEmail
+  );
+}
 function getMsalClient() {
   if (msalClient) return msalClient;
   const { ConfidentialClientApplication } = require('@azure/msal-node');
