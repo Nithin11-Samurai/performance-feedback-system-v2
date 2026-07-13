@@ -1285,7 +1285,7 @@ function EmployeeDetail({ employee, managers, onUpdated, onDeleted }) {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+            className={`flex flex-shrink-0 items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors ${
               tab === key ? 'bg-primary-600 text-white' : 'text-ink-light/70 hover:bg-white/60 dark:text-ink-dark/70'
             }`}
           >
@@ -1609,39 +1609,44 @@ Delete Selected
           <>
             <ul className="max-h-[55vh] space-y-1 overflow-y-auto">
               {employees.map((emp) => (
-                <li key={emp.id} className="flex items-center gap-1">
+                <li key={emp.id} className="flex items-center gap-2">
                   <button
                     onClick={() => toggleChecked(emp.id)}
                     aria-label={checkedIds.includes(emp.id) ? 'Deselect' : 'Select'}
-                    className="flex-shrink-0 p-1 text-ink-light/30 hover:text-primary-600 dark:text-ink-dark/30"
+                    className="w-6 flex justify-center text-ink-light/30 hover:text-primary-600 dark:text-ink-dark/30"
                   >
                     {checkedIds.includes(emp.id) ? <CheckSquare size={16} /> : <Square size={16} />}
                   </button>
                   <button
                     onClick={() => setSelected(emp)}
-                    className={`flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 transition-all duration-200 hover:-translate-y-[1px] hover:border-primary-200 hover:bg-primary-50 hover:shadow-md ${
-                      selected?.id === emp.id ? 'bg-primary-600 text-white shadow-lg ring-2 ring-primary-200' : 'hover:bg-primary-50 dark:hover:bg-primary-900/40'
-                    }`}
-                  >
-                    <AvatarUpload
-                      userId={emp.id}
-                      firstName={emp.first_name}
-                      lastName={emp.last_name}
-                      avatarUrl={emp.avatar_url}
-                      size={32}
-                      onUploaded={(updated) => {
-                        setEmployees((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-                        if (selected?.id === updated.id) setSelected(updated);
-                      }}
-                    />
-                 <div className="flex-1 min-w-0">
-    <h4 className="truncate font-semibold text-sm">
-        {emp.first_name} {emp.last_name}
-    </h4>
+                    <div className="flex items-center gap-3">
 
-    <p className="truncate text-xs text-gray-500">
-        {emp.job_title || roleLabel(emp.role)}
-    </p>
+    <AvatarUpload
+        userId={emp.id}
+        firstName={emp.first_name}
+        lastName={emp.last_name}
+        avatarUrl={emp.avatar_url}
+        size={34}
+        onUploaded={(updated) => {
+            setEmployees(prev =>
+                prev.map(x => x.id === updated.id ? updated : x)
+            );
+
+            if (selected?.id === updated.id)
+                setSelected(updated);
+        }}
+    />
+
+    <div className="min-w-0">
+        <p className="truncate font-semibold leading-5">
+            {emp.first_name} {emp.last_name}
+        </p>
+
+        <p className="truncate text-sm text-ink-light/55">
+            {emp.job_title || roleLabel(emp.role)}
+        </p>
+    </div>
+
 </div>
                   </button>
                 </li>
