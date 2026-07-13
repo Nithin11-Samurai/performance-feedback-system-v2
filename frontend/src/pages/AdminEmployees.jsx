@@ -1611,44 +1611,50 @@ Delete Selected
               {employees.map((emp) => (
                 <li key={emp.id} className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleChecked(emp.id)}
-                    aria-label={checkedIds.includes(emp.id) ? 'Deselect' : 'Select'}
-                    className="w-6 flex justify-center text-ink-light/30 hover:text-primary-600 dark:text-ink-dark/30"
-                  >
-                    {checkedIds.includes(emp.id) ? <CheckSquare size={16} /> : <Square size={16} />}
-                  </button>
-                  <button
-                    onClick={() => setSelected(emp)}
-                    <div className="flex items-center gap-3">
+  onClick={() => setSelected(emp)}
+  className={`flex w-full items-center gap-2 rounded-xl border border-transparent px-3 py-3 transition-all duration-200 hover:-translate-y-[1px] hover:border-primary-200 hover:bg-primary-50 hover:shadow-md ${
+    selected?.id === emp.id
+      ? "bg-primary-600 text-white shadow-lg ring-2 ring-primary-200"
+      : "hover:bg-primary-50 dark:hover:bg-primary-900/40"
+  }`}
+>
+  <div className="flex items-center gap-3">
 
     <AvatarUpload
-        userId={emp.id}
-        firstName={emp.first_name}
-        lastName={emp.last_name}
-        avatarUrl={emp.avatar_url}
-        size={34}
-        onUploaded={(updated) => {
-            setEmployees(prev =>
-                prev.map(x => x.id === updated.id ? updated : x)
-            );
+      userId={emp.id}
+      firstName={emp.first_name}
+      lastName={emp.last_name}
+      avatarUrl={emp.avatar_url}
+      size={34}
+      onUploaded={(updated) => {
+        setEmployees(prev =>
+          prev.map(x => (x.id === updated.id ? updated : x))
+        );
 
-            if (selected?.id === updated.id)
-                setSelected(updated);
-        }}
+        if (selected?.id === updated.id) {
+          setSelected(updated);
+        }
+      }}
     />
 
     <div className="min-w-0">
-        <p className="truncate font-semibold leading-5">
-            {emp.first_name} {emp.last_name}
-        </p>
+      <p className="truncate font-semibold leading-5">
+        {emp.first_name} {emp.last_name}
+      </p>
 
-        <p className="truncate text-sm text-ink-light/55">
-            {emp.job_title || roleLabel(emp.role)}
-        </p>
+      <p
+        className={`truncate text-sm ${
+          selected?.id === emp.id
+            ? "text-primary-100"
+            : "text-ink-light/55"
+        }`}
+      >
+        {emp.job_title || roleLabel(emp.role)}
+      </p>
     </div>
 
-</div>
-                  </button>
+  </div>
+</button>
                 </li>
               ))}
               {employees.length === 0 && (
