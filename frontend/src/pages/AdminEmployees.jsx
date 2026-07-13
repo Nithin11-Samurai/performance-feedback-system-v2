@@ -1621,7 +1621,7 @@ Delete Selected
     : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
 }`}
 >
-<div className="grid grid-cols-[40px_1fr] items-center gap-4 w-full">
+<div className="flex items-center gap-3 w-full">
   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 overflow-hidden">
   {emp.avatar_url ? (
     <img
@@ -1637,7 +1637,7 @@ Delete Selected
   )}
 </div>
 
-<div className="min-w-0">
+<div className="min-w-0 flex-1">
      <p className="truncate font-semibold leading-5">
         {emp.first_name} {emp.last_name}
       </p>
