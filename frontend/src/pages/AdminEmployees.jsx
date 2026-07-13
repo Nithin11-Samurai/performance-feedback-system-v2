@@ -1237,11 +1237,14 @@ function EmployeeDetail({ employee, managers, onUpdated, onDeleted }) {
 
     <div className="flex items-center gap-5">
 
-      <AvatarUpload
-        ...
-        size={72}
-      />
-
+     <AvatarUpload
+  userId={employee.id}
+  firstName={employee.first_name}
+  lastName={employee.last_name}
+  avatarUrl={employee.avatar_url}
+  size={72}
+  onUploaded={onUpdated}
+/>
       <div>
 
         <h2 className="font-display text-2xl font-bold">
