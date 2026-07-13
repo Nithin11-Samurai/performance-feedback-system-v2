@@ -1224,7 +1224,8 @@ function ReviewersTab({ employee }) {
   );
 }
 
-// --- Modern tabbed employee profile -----------------------------------function EmployeeDetail({ employee, managers, onUpdated, onDeleted }) {
+// --- Modern tabbed employee profile -----------------------------------
+function EmployeeDetail({ employee, managers, onUpdated, onDeleted }) {
   const [tab, setTab] = useState('overview');
 
   return (
