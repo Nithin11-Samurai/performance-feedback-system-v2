@@ -1621,8 +1621,8 @@ Delete Selected
     : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
 }`}
 >
-<div className="flex items-center gap-3 w-full">
-  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 overflow-hidden">
+<div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
+  <div style={{ display: "flex", height: "40px", width: "40px", flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: "9999px", overflow: "hidden", backgroundColor: "#fadeee", color: "#993d6b", fontSize: "14px", fontWeight: 600 }}>
   {emp.avatar_url ? (
     <img
       src={emp.avatar_url}
@@ -1637,7 +1637,7 @@ Delete Selected
   )}
 </div>
 
-<div className="min-w-0 flex-1">
+<div style={{ minWidth: 0, flex: "1 1 0%" }}>
      <p className="truncate font-semibold leading-5">
         {emp.first_name} {emp.last_name}
       </p>
