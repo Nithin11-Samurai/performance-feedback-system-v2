@@ -1502,26 +1502,33 @@ showToast("Delete failed","error");
       <div className="card card-reviews h-fit">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="font-display text-base font-semibold">Directory</h3>
-          <button
-            className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-105 hover:shadow-md"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus size={16} />
-            New Employee
-          </button>
-        </div>
-
-        <div className="mb-3 flex gap-1.5">
-          {canDelete && (
-            <button className="btn-secondary flex-1 text-xs" onClick={() => setRecentlyDeletedOpen(true)}>
-              <Trash2 size={14} />
-              Recently Deleted
+          <div className="flex items-center gap-1.5">
+            {canDelete && (
+              <button
+                onClick={() => setRecentlyDeletedOpen(true)}
+                title="Recently Deleted"
+                aria-label="Recently Deleted"
+                className="btn-secondary !px-2.5"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+            <button
+              onClick={() => setBulkUploadOpen(true)}
+              title="Bulk Upload"
+              aria-label="Bulk Upload"
+              className="btn-secondary !px-2.5"
+            >
+              <UploadCloud size={15} />
             </button>
-          )}
-          <button className="btn-secondary flex-1 text-xs" onClick={() => setBulkUploadOpen(true)}>
-            <UploadCloud size={14} />
-            Bulk Upload
-          </button>
+            <button
+              className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-200 hover:scale-105 hover:shadow-md"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus size={16} />
+              New
+            </button>
+          </div>
         </div>
         <div className="relative mb-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-light/40" />
