@@ -1617,8 +1617,8 @@ Delete Selected
                         : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
                     }`}
                   >
-                    <div className="flex w-full items-center">
-                      <div className="flex w-14 flex-shrink-0 justify-center">
+                    <div className="flex items-center w-full">
+                      <div className="w-10 flex-shrink-0">
                         <AvatarThumbnail
                           firstName={emp.first_name}
                           lastName={emp.last_name}
@@ -1626,7 +1626,7 @@ Delete Selected
                           size={40}
                         />
                       </div>
-                      <div className="ml-4 min-w-0 flex-1">
+                      <div className="ml-3 min-w-0">
                         <p className="truncate font-semibold leading-5">
                           {emp.first_name} {emp.last_name}
                         </p>
