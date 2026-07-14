@@ -1599,46 +1599,44 @@ Delete Selected
           <>
 <ul className="max-h-[55vh] space-y-3 overflow-y-auto pr-2">
                 {employees.map((emp) => (
-                <li key={emp.id} className="flex items-center gap-1">
+                <li
+                  key={emp.id}
+                  className={`flex items-center gap-2 rounded-xl border p-3 transition-all duration-200 ${
+                    selected?.id === emp.id
+                      ? "border-primary-300 bg-primary-50 shadow-md"
+                      : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
+                  }`}
+                >
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleChecked(emp.id);
                     }}
-                    className="mr-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded hover:bg-primary-100"
+                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded hover:bg-primary-100"
                   >
                     {checkedIds.includes(emp.id) ? <CheckSquare size={18} /> : <Square size={18} />}
                   </button>
-                  <button
-                    onClick={() => setSelected(emp)}
-                    className={`flex flex-1 items-center rounded-xl border px-4 py-4 transition-all duration-200 ${
-                      selected?.id === emp.id
-                        ? "border-primary-300 bg-primary-50 shadow-md"
-                        : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
-                    }`}
-                  >
-                    <div className="flex items-center w-full">
-                      <div className="w-10 flex-shrink-0">
-                        <AvatarThumbnail
-                          firstName={emp.first_name}
-                          lastName={emp.last_name}
-                          avatarUrl={emp.avatar_url}
-                          size={40}
-                        />
-                      </div>
-                      <div className="ml-3 min-w-0">
-                        <p className="truncate font-semibold leading-5">
-                          {emp.first_name} {emp.last_name}
-                        </p>
-                        <p
-                          className={`truncate text-sm ${
-                            selected?.id === emp.id ? "text-primary-700 font-medium" : "text-ink-light/55"
-                          }`}
-                        >
-                          {emp.job_title || roleLabel(emp.role)}
-                        </p>
-                      </div>
-                    </div>
+                  <button onClick={() => setSelected(emp)} className="flex flex-1 items-center gap-3 text-left">
+                    <span className="w-10 flex-shrink-0">
+                      <AvatarThumbnail
+                        firstName={emp.first_name}
+                        lastName={emp.last_name}
+                        avatarUrl={emp.avatar_url}
+                        size={40}
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <p className="truncate font-semibold leading-5">
+                        {emp.first_name} {emp.last_name}
+                      </p>
+                      <p
+                        className={`truncate text-sm ${
+                          selected?.id === emp.id ? "text-primary-700 font-medium" : "text-ink-light/55"
+                        }`}
+                      >
+                        {emp.job_title || roleLabel(emp.role)}
+                      </p>
+                    </span>
                   </button>
                 </li>
               ))}
