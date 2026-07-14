@@ -48,6 +48,7 @@ import FeedbackList from '../components/FeedbackList';
 import AiSummaryPanel from '../components/AiSummaryPanel';
 import ExportButtons from '../components/ExportButtons';
 import AvatarUpload from '../components/AvatarUpload';
+import AvatarThumbnail from '../components/AvatarThumbnail';
 import Skeleton from '../components/Skeleton';
 import EmployeeTimeline from '../components/EmployeeTimeline';
 import EmployeePicker from '../components/EmployeePicker';
@@ -1599,62 +1600,46 @@ Delete Selected
 <ul className="max-h-[55vh] space-y-3 overflow-y-auto pr-2">
                 {employees.map((emp) => (
                 <li key={emp.id} className="flex items-center gap-1">
-
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      toggleChecked(emp.id);
-    }}
-   className="mr-1 flex h-5 w-5 items-center justify-center rounded hover:bg-primary-100"
-  >
-    {checkedIds.includes(emp.id) ? (
-      <CheckSquare size={18} />
-    ) : (
-      <Square size={18} />
-    )}
-  </button>
                   <button
-  onClick={() => setSelected(emp)}
-  className={`flex flex-1 items-center gap-4 rounded-xl border px-4 py-4 transition-all duration-200 ${
-  selected?.id === emp.id
-    ? "border-primary-300 bg-primary-50 shadow-md"
-    : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
-}`}
->
-<div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
-  <div style={{ display: "flex", height: "40px", width: "40px", flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: "9999px", overflow: "hidden", backgroundColor: "#fadeee", color: "#993d6b", fontSize: "14px", fontWeight: 600 }}>
-  {emp.avatar_url ? (
-    <img
-      src={emp.avatar_url}
-      alt={`${emp.first_name} ${emp.last_name}`}
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    <>
-      {emp.first_name?.[0]}
-      {emp.last_name?.[0]}
-    </>
-  )}
-</div>
-
-<div style={{ minWidth: 0, flex: "1 1 0%" }}>
-     <p className="truncate font-semibold leading-5">
-        {emp.first_name} {emp.last_name}
-      </p>
-
-      <p
-         className={`truncate text-sm ${
-    selected?.id === emp.id
-      ? "text-primary-700 font-medium"
-      : "text-ink-light/55"
-  }`}
->
-        {emp.job_title || roleLabel(emp.role)}
-      </p>
-    </div>
-
-  </div>
-</button>
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleChecked(emp.id);
+                    }}
+                    className="mr-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded hover:bg-primary-100"
+                  >
+                    {checkedIds.includes(emp.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                  </button>
+                  <button
+                    onClick={() => setSelected(emp)}
+                    className={`flex flex-1 items-center rounded-xl border px-4 py-4 transition-all duration-200 ${
+                      selected?.id === emp.id
+                        ? "border-primary-300 bg-primary-50 shadow-md"
+                        : "border-transparent hover:border-primary-200 hover:bg-primary-50 hover:shadow-sm"
+                    }`}
+                  >
+                    <div className="flex w-full items-center">
+                      <div className="flex w-14 flex-shrink-0 justify-center">
+                        <AvatarThumbnail
+                          firstName={emp.first_name}
+                          lastName={emp.last_name}
+                          avatarUrl={emp.avatar_url}
+                          size={40}
+                        />
+                      </div>
+                      <div className="ml-4 min-w-0 flex-1">
+                        <p className="truncate font-semibold leading-5">
+                          {emp.first_name} {emp.last_name}
+                        </p>
+                        <p
+                          className={`truncate text-sm ${
+                            selected?.id === emp.id ? "text-primary-700 font-medium" : "text-ink-light/55"
+                          }`}
+                        >
+                          {emp.job_title || roleLabel(emp.role)}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
                 </li>
               ))}
               {employees.length === 0 && (
