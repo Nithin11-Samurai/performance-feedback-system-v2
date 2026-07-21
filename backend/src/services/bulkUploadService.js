@@ -30,6 +30,51 @@ function normalizeHeader(h) {
   return String(h || '').trim();
 }
 
+/**
+ * Turns a single Excel cell's raw value into the string our validators
+ * and downstream code expect.
+ *
+ * The one case that needs special handling: if the "Date of Joining"
+ * column is formatted as a Date in Excel (very easy to do by accident -
+ * typing 8/1/2021 into a cell and Excel auto-formats it), ExcelJS hands
+ * back a native JS Date object for that cell, not a string. Calling
+ * String() on a Date object runs its default toString(), producing
+ * things like "Sun Aug 01 2021 00:00:00 GMT+0000 (Coordinated Universal
+ * Time)" - which obviously never matches our YYYY-MM-DD regex. That's
+ * exactly the bug: every row with a date-typed cell failed validation
+ * with that exact message, even though the date itself was perfectly
+ * valid.
+ *
+ * Using UTC getters (not local-time getters) when formatting the Date
+ * back to a string avoids the date shifting by a day depending on the
+ * server's timezone.
+ */
+function cellValueToString(rawValue) {
+  if (rawValue == null) return '';
+
+  if (rawValue instanceof Date) {
+    const year = rawValue.getUTCFullYear();
+    const month = String(rawValue.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(rawValue.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // ExcelJS can also return a rich-text object ({ richText: [...] }) for
+  // cells with mixed formatting, or a formula-result object ({ result }).
+  // Handle those defensively too, rather than letting them fall through
+  // to a useless [object Object] string.
+  if (typeof rawValue === 'object') {
+    if (Array.isArray(rawValue.richText)) {
+      return rawValue.richText.map((t) => t.text).join('').trim();
+    }
+    if ('result' in rawValue) {
+      return cellValueToString(rawValue.result);
+    }
+  }
+
+  return String(rawValue).trim();
+}
+
 async function parseWorkbookRows(buffer) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -53,7 +98,7 @@ async function parseWorkbookRows(buffer) {
     const values = {};
     row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
       const header = headers[colNumber];
-      if (header) values[header] = cell.value != null ? String(cell.value).trim() : '';
+      if (header) values[header] = cellValueToString(cell.value);
     });
     if (Object.values(values).some((v) => v)) {
       rows.push({ rowNumber, values });
