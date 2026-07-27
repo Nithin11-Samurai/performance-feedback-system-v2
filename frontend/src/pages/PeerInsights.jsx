@@ -19,7 +19,7 @@ import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
 import CategoryBreakdownList from '../components/CategoryBreakdownList';
-import { generateStructuredSummary } from '../utils/summaryGenerator';
+import { generateStructuredSummary, generateReviewerSummary } from '../utils/summaryGenerator';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -583,23 +583,12 @@ function SubjectCuration({ round, subject, onBack }) {
                       From {f.reviewer_first_name} {f.reviewer_last_name} {f.rating && `· Overall ${f.rating}/5`}
                     </p>
                     {schema && f.category_scores && (
-                      <div className="mb-2 space-y-1">
-                        {schema.categories.map((c) => {
-                          const entry = f.category_scores[c.key];
-                          if (!entry?.score) return null;
-                          const label = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
-                          return (
-                            <p key={c.key}>
-                              <span className="font-medium">{c.label}:</span> {label}
-                              {entry.comment && <span className="text-ink-light/60 dark:text-ink-dark/60"> — {entry.comment}</span>}
-                            </p>
-                          );
-                        })}
-                      </div>
+                      <p className="mb-2 text-ink-light/80 dark:text-ink-dark/80">
+                        {generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)}
+                      </p>
                     )}
                     {f.strengths && <p>Strengths: {f.strengths}</p>}
                     {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
-                    {f.comments && <p>Final thoughts: {f.comments}</p>}
                   </div>
                 ))}
               </div>
