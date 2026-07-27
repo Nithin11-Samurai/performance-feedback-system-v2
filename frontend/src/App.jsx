@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { FeatureFlagsProvider, useFeatureFlags } from './context/FeatureFlagsContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { PageTitleProvider } from './context/PageTitleContext';
 import { ToastProvider } from './context/ToastContext';
@@ -56,6 +57,19 @@ function AuthBootstrapLoader() {
 }
 
 /**
+ * Layers the admin-configurable feature-visibility toggle on top of the
+ * existing role-based <ProtectedRoute> checks below — those stay
+ * exactly as they are (the hard floor: e.g. Employee/Manager can never
+ * reach /skills regardless of the toggle). This just adds "...and is
+ * the toggle currently on for this user's audience?" on top.
+ */
+function FeatureGate({ featureKey, children }) {
+  const { isVisible, loaded } = useFeatureFlags();
+  if (!loaded) return null;
+  return isVisible(featureKey) ? children : <Navigate to="/dashboard" replace />;
+}
+
+/**
  * Lives inside BrowserRouter (needs useLocation for route-change
  * detection) and inside every provider the loader/auth bridges need.
  */
@@ -82,7 +96,14 @@ function AppShell() {
             {/* Manager + Admin only */}
             <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ...ADMIN_TIER_ROLES]} />}>
               <Route path="/team" element={<Team />} />
-              <Route path="/skills-certs-overview" element={<SkillsCertsOverview />} />
+              <Route
+                path="/skills-certs-overview"
+                element={
+                  <FeatureGate featureKey="skills_certs_overview">
+                    <SkillsCertsOverview />
+                  </FeatureGate>
+                }
+              />
             </Route>
 
             {/* Admin + Global Admin only (narrower than the general Admin-tier block below) */}
@@ -93,8 +114,22 @@ function AppShell() {
                   Admin-tier group, change allowedRoles here to ADMIN_TIER_ROLES, or
                   to fully re-open these to everyone, move these 2 lines down into
                   the open block above and set their Sidebar.jsx roles back to null. */}
-              <Route path="/skills" element={<Skills />} />
-              <Route path="/certifications" element={<Certifications />} />
+              <Route
+                path="/skills"
+                element={
+                  <FeatureGate featureKey="skills">
+                    <Skills />
+                  </FeatureGate>
+                }
+              />
+              <Route
+                path="/certifications"
+                element={
+                  <FeatureGate featureKey="certifications">
+                    <Certifications />
+                  </FeatureGate>
+                }
+              />
             </Route>
 
             {/* Admin only */}
@@ -103,12 +138,33 @@ function AppShell() {
                   hidden from Employee/Manager for now. To revert: move this line back
                   up into the open block above, and change its matching Sidebar.jsx
                   entry back to `roles: null`. */}
-              <Route path="/reviews" element={<Reviews />} />
+              <Route
+                path="/reviews"
+                element={
+                  <FeatureGate featureKey="reviews">
+                    <Reviews />
+                  </FeatureGate>
+                }
+              />
 
               <Route path="/notes" element={<Navigate to="/admin/employees" replace />} />
               <Route path="/admin/employees" element={<AdminEmployees />} />
-              <Route path="/admin/cycles" element={<AdminCycles />} />
-              <Route path="/analytics" element={<Analytics />} />
+              <Route
+                path="/admin/cycles"
+                element={
+                  <FeatureGate featureKey="review_cycles">
+                    <AdminCycles />
+                  </FeatureGate>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <FeatureGate featureKey="analytics">
+                    <Analytics />
+                  </FeatureGate>
+                }
+              />
               <Route path="/activity-log" element={<ActivityLog />} />
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/settings" element={<Settings />} />
@@ -129,11 +185,13 @@ export default function App() {
       <ToastProvider>
         <LoadingProvider>
           <AuthProvider>
-            <PageTitleProvider>
-              <BrowserRouter>
-                <AppShell />
-              </BrowserRouter>
-            </PageTitleProvider>
+            <FeatureFlagsProvider>
+              <PageTitleProvider>
+                <BrowserRouter>
+                  <AppShell />
+                </BrowserRouter>
+              </PageTitleProvider>
+            </FeatureFlagsProvider>
           </AuthProvider>
         </LoadingProvider>
       </ToastProvider>

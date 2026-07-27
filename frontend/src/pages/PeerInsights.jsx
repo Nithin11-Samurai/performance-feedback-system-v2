@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
-import { describeCategoryResponse } from '../utils/feedbackNarrative';
+import CategoryBreakdownList from '../components/CategoryBreakdownList';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -569,39 +569,7 @@ function SubjectCuration({ round, subject, onBack }) {
           <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No submitted feedback yet.</p>
         ) : (
           <>
-            <div className="space-y-4">
-              {breakdown.categories.map((cat) => {
-                if (cat.responses.length === 0) return null;
-                return (
-                  <div key={cat.key} className="border-b border-primary-50 pb-3 last:border-0 dark:border-primary-900/50">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <p className="text-sm font-semibold">{cat.label}</p>
-                      <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-900/60 dark:text-primary-100">
-                        avg {cat.avgScore}/5
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {cat.responses.map((r, i) => (
-                        <p key={i} className="text-sm text-ink-light/80 dark:text-ink-dark/80">
-                          {describeCategoryResponse(cat.key, r.scoreLabel, r.comment)}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {breakdown.finalThoughts.length > 0 && (
-              <div className="mt-3">
-                <p className="mb-1 text-sm font-semibold">Final thoughts from peers</p>
-                <div className="space-y-1 text-xs text-ink-light/60 dark:text-ink-dark/60">
-                  {breakdown.finalThoughts.map((t, i) => (
-                    <p key={i}>"{t}"</p>
-                  ))}
-                </div>
-              </div>
-            )}
+            <CategoryBreakdownList breakdown={breakdown} />
 
             <button
               onClick={() => setShowByReviewer((v) => !v)}

@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import * as catalogService from '../services/catalogService';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Skeleton from '../components/Skeleton';
+import FeatureVisibilitySettings from '../components/FeatureVisibilitySettings';
 
 function CatalogList({ title, icon: Icon, items, itemKey, onAdd, onDelete, placeholder }) {
   const [value, setValue] = useState('');
@@ -128,6 +129,8 @@ export default function Settings() {
         Manage the department and job title lists used across employee profiles — these power the
         dropdowns when creating or editing an employee.
       </p>
+      <FeatureVisibilitySettings />
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CatalogList
           title="Departments"

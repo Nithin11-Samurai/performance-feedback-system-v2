@@ -18,20 +18,39 @@ import {
   Cog,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useFeatureFlags } from '../context/FeatureFlagsContext';
 import { ROLES, ADMIN_TIER_ROLES } from '../utils/roles';
 import logo from '../assets/logo-samurai.png';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN] },
-  { to: '/certifications', label: 'Certifications', icon: Award, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN] },
-  { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: ADMIN_TIER_ROLES },
+  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN], featureKey: 'skills' },
+  {
+    to: '/certifications',
+    label: 'Certifications',
+    icon: Award,
+    roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN],
+    featureKey: 'certifications',
+  },
+  { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: ADMIN_TIER_ROLES, featureKey: 'reviews' },
   { to: '/peer-insights', label: '360° Feedback', icon: Users2, roles: null },
   { to: '/team', label: 'My Team', icon: Users, roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES] },
   { to: '/admin/employees', label: 'Employees', icon: ShieldCheck, roles: ADMIN_TIER_ROLES },
-  { to: '/admin/cycles', label: 'Review Cycles', icon: Settings, roles: ADMIN_TIER_ROLES },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3, roles: ADMIN_TIER_ROLES },
-  { to: '/skills-certs-overview', label: 'Skills and Certifications', icon: Award, roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES] },
+  {
+    to: '/admin/cycles',
+    label: 'Review Cycles',
+    icon: Settings,
+    roles: ADMIN_TIER_ROLES,
+    featureKey: 'review_cycles',
+  },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, roles: ADMIN_TIER_ROLES, featureKey: 'analytics' },
+  {
+    to: '/skills-certs-overview',
+    label: 'Skills and Certifications',
+    icon: Award,
+    roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES],
+    featureKey: 'skills_certs_overview',
+  },
   { to: '/activity-log', label: 'Activity Log', icon: ShieldAlert, roles: ADMIN_TIER_ROLES },
   { to: '/notifications', label: 'Notifications', icon: Bell, roles: null },
   { to: '/permissions', label: 'Permissions', icon: ShieldCheck, roles: ADMIN_TIER_ROLES },
@@ -49,9 +68,12 @@ function getStoredCollapsed() {
  */
 export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   const { user } = useAuth();
+  const { isVisible } = useFeatureFlags();
   const [collapsed, setCollapsed] = useState(getStoredCollapsed);
 
-  const visibleItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(user?.role));
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => (!item.roles || item.roles.includes(user?.role)) && (!item.featureKey || isVisible(item.featureKey))
+  );
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
