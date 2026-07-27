@@ -93,8 +93,12 @@ export function generateStructuredSummary(breakdown, employeeFirstName) {
   }
 
   if (breakdown.finalThoughts.length > 0) {
-    const quotes = breakdown.finalThoughts.map((t) => `"${t}"`);
-    paragraphs.push(`Overall, peers summed up their experience working with ${name} as ${joinNaturally(quotes)}.`);
+    const MAX_QUOTES = 3;
+    const shown = breakdown.finalThoughts.slice(0, MAX_QUOTES).map((t) => `"${t}"`);
+    const remaining = breakdown.finalThoughts.length - shown.length;
+    const quoteText =
+      remaining > 0 ? `${joinNaturally(shown)}, among other positive notes` : joinNaturally(shown);
+    paragraphs.push(`Overall, peers summed up their experience working with ${name} as ${quoteText}.`);
   }
 
   return paragraphs.join('\n\n');
@@ -112,7 +116,11 @@ export function generateStructuredSummary(breakdown, employeeFirstName) {
  * @param {Array} categories - the FEEDBACK_CATEGORIES schema (key, label)
  * @param {Array} likertScale - [{value, label}], e.g. {1:'Rarely'...5:'Always'}
  * @param {string|null} finalThoughtComment
- * @returns {string}
+ * @returns {{body: string, finalThoughts: string|null}} finalThoughts is
+ *   returned separately (not concatenated into body) so the caller can
+ *   render it as its own line/paragraph, rather than relying on a
+ *   newline character inside a single string, which HTML collapses by
+ *   default.
  */
 export function generateReviewerSummary(categoryScores, categories, likertScale, finalThoughtComment) {
   const answered = categories
@@ -124,7 +132,7 @@ export function generateReviewerSummary(categoryScores, categories, likertScale,
     })
     .filter(Boolean);
 
-  if (answered.length === 0) return '';
+  if (answered.length === 0) return { body: '', finalThoughts: null };
 
   const strong = answered.filter((a) => a.score >= 4).sort((a, b) => b.score - a.score);
   const weak = answered.filter((a) => a.score <= 2).sort((a, b) => a.score - b.score);
@@ -152,9 +160,8 @@ export function generateReviewerSummary(categoryScores, categories, likertScale,
     sentences.push(`Specific note: "${anyComment}"`);
   }
 
-  if (finalThoughtComment) {
-    sentences.push(`Final thoughts: "${finalThoughtComment}"`);
-  }
-
-  return sentences.join(' ');
+  return {
+    body: sentences.join(' '),
+    finalThoughts: finalThoughtComment || null,
+  };
 }

@@ -577,20 +577,29 @@ function SubjectCuration({ round, subject, onBack }) {
 
             {showByReviewer && rawFeedback && (
               <div className="mt-3 space-y-3">
-                {rawFeedback.map((f) => (
-                  <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
-                    <p className="mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
-                      From {f.reviewer_first_name} {f.reviewer_last_name} {f.rating && `· Overall ${f.rating}/5`}
-                    </p>
-                    {schema && f.category_scores && (
-                      <p className="mb-2 text-ink-light/80 dark:text-ink-dark/80">
-                        {generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)}
+                {rawFeedback.map((f) => {
+                  const reviewerSummary =
+                    schema && f.category_scores
+                      ? generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)
+                      : null;
+                  return (
+                    <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
+                      <p className="mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+                        From {f.reviewer_first_name} {f.reviewer_last_name} {f.rating && `· Overall ${f.rating}/5`}
                       </p>
-                    )}
-                    {f.strengths && <p>Strengths: {f.strengths}</p>}
-                    {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
-                  </div>
-                ))}
+                      {reviewerSummary?.body && (
+                        <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>
+                      )}
+                      {reviewerSummary?.finalThoughts && (
+                        <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
+                          Final thoughts: "{reviewerSummary.finalThoughts}"
+                        </p>
+                      )}
+                      {f.strengths && <p>Strengths: {f.strengths}</p>}
+                      {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
