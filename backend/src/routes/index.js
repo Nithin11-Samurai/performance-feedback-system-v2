@@ -41,5 +41,5 @@ router.use('/activity-logs', require('./activityLogRoutes'));
 router.use('/catalog', require('./catalogRoutes'));
 router.use('/peer-insights', require('./peerInsightRoutes'));
 router.use('/permissions', require('./sectionPermissionRoutes'));
-
+router.use('/feature-flags', require('./featureFlagRoutes'));
 module.exports = router;
