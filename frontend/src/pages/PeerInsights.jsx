@@ -19,6 +19,7 @@ import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
 import CategoryBreakdownList from '../components/CategoryBreakdownList';
+import { generateStructuredSummary } from '../utils/summaryGenerator';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -457,7 +458,6 @@ function SubjectCuration({ round, subject, onBack }) {
   const [summaryText, setSummaryText] = useState('');
   const [saving, setSaving] = useState(false);
   const [releasing, setReleasing] = useState(false);
-  const [generatingAi, setGeneratingAi] = useState(false);
   const [schema, setSchema] = useState(null);
 
   useEffect(() => {
@@ -494,17 +494,14 @@ function SubjectCuration({ round, subject, onBack }) {
     }
   }
 
-  async function handleGenerateAi() {
-    setGeneratingAi(true);
-    try {
-      const draft = await peerInsightService.generateAiSummaryDraft(round.id, subject.id);
-      setSummaryText(draft);
-      showToast('AI draft generated — review and edit before sending');
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to generate AI summary.', 'error');
-    } finally {
-      setGeneratingAi(false);
+  function handleGenerateSummary() {
+    const draft = generateStructuredSummary(breakdown, subject.first_name);
+    if (!draft) {
+      showToast('No submitted feedback yet to summarize.', 'error');
+      return;
     }
+    setSummaryText(draft);
+    showToast('Draft generated — review and edit before sending');
   }
 
   async function handleRelease() {
@@ -617,12 +614,16 @@ function SubjectCuration({ round, subject, onBack }) {
             <Sparkles size={15} /> HR Curated Summary
           </h4>
           <button
-            onClick={handleGenerateAi}
-            disabled={generatingAi || !breakdown?.reviewerCount}
+            onClick={handleGenerateSummary}
+            disabled={!breakdown?.reviewerCount}
             className="btn-secondary text-xs disabled:opacity-40"
-            title={!breakdown?.reviewerCount ? 'No submitted feedback yet to summarize' : 'Draft a summary from the feedback above using AI'}
+            title={
+              !breakdown?.reviewerCount
+                ? 'No submitted feedback yet to summarize'
+                : 'Draft a structured summary from the feedback above'
+            }
           >
-            <Sparkles size={13} /> {generatingAi ? 'Generating…' : 'Generate with AI'}
+            <Sparkles size={13} /> Generate Summary
           </button>
         </div>
         {summary?.released_to_employee && (
