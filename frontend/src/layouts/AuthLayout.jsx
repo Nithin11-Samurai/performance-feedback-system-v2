@@ -4,7 +4,7 @@ export default function AuthLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-paper-light dark:bg-paper-dark">
       {/* Branding panel — hidden on small screens */}
-      <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-primary-50 px-12 dark:bg-primary-950 lg:flex">
+      <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-white px-12 dark:bg-primary-950 lg:flex">
         <img src={logo} alt="PinkSamurais" className="mb-8 h-20 w-auto max-w-full object-contain" />
         <h2 className="mb-2 text-center font-display text-2xl font-semibold text-primary-800 dark:text-primary-100">
           Grow, together.
