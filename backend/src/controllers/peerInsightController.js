@@ -127,6 +127,43 @@ const listMyReleasedSummaries = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { summaries } });
 });
 
+// --- Cross-project ---
+
+const searchSubjects = asyncHandler(async (req, res) => {
+  const employees = await peerInsightService.searchSubjectsWithFeedback(req.user, req.query.q);
+  res.json({ success: true, data: { employees } });
+});
+
+const getCrossProjectBreakdown = asyncHandler(async (req, res) => {
+  const result = await peerInsightService.getCrossProjectBreakdown(req.user, req.params.subjectId);
+  res.json({ success: true, data: result });
+});
+
+const getOverallSummary = asyncHandler(async (req, res) => {
+  const summary = await peerInsightService.getOverallSummary(req.user, req.params.subjectId);
+  res.json({ success: true, data: { summary } });
+});
+
+const saveOverallSummary = asyncHandler(async (req, res) => {
+  const summary = await peerInsightService.saveOverallSummary(req.user, req.params.subjectId, req.body.summaryText);
+  res.json({ success: true, message: 'Overall summary saved', data: { summary } });
+});
+
+const releaseOverallSummary = asyncHandler(async (req, res) => {
+  const summary = await peerInsightService.releaseOverallSummary(req.user, req.params.subjectId);
+  res.json({ success: true, message: 'Overall summary released to employee', data: { summary } });
+});
+
+const unreleaseOverallSummary = asyncHandler(async (req, res) => {
+  const summary = await peerInsightService.unreleaseOverallSummary(req.user, req.params.subjectId);
+  res.json({ success: true, message: 'Overall summary reverted — no longer visible to the employee', data: { summary } });
+});
+
+const getMyReleasedOverallSummary = asyncHandler(async (req, res) => {
+  const summary = await peerInsightService.getMyReleasedOverallSummary(req.user);
+  res.json({ success: true, data: { summary } });
+});
+
 module.exports = {
   getFeedbackFormSchema,
   createGroup,
@@ -152,4 +189,11 @@ module.exports = {
   releaseSummary,
   unreleaseSummary,
   listMyReleasedSummaries,
+  searchSubjects,
+  getCrossProjectBreakdown,
+  getOverallSummary,
+  saveOverallSummary,
+  releaseOverallSummary,
+  unreleaseOverallSummary,
+  getMyReleasedOverallSummary,
 };

@@ -561,3 +561,31 @@ VALUES
   ('analytics', 'Analytics', true, false),
   ('skills_certs_overview', 'Skills and Certifications Overview', true, false)
 ON CONFLICT (key) DO NOTHING;
+
+-- An employee can be a member of multiple 360 Feedback project groups at
+-- once (e.g. "Conga" and "Adtran"), each with its own round/breakdown and
+-- its own per-round curated summary (peer_insight_summaries above). This
+-- table is a SEPARATE, single curated summary per employee that spans
+-- ALL of their projects at once - HR writes one overall narrative after
+-- reviewing every project's feedback together, rather than being locked
+-- into releasing one project's summary at a time.
+CREATE TABLE IF NOT EXISTS peer_insight_overall_summaries (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    subject_id            UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    summary_text          TEXT NOT NULL,
+    released_to_employee  BOOLEAN NOT NULL DEFAULT FALSE,
+    released_by           UUID REFERENCES users(id) ON DELETE SET NULL,
+    released_at           TIMESTAMPTZ,
+    created_by            UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_set_updated_at_peer_insight_overall_summaries') THEN
+        CREATE TRIGGER trg_set_updated_at_peer_insight_overall_summaries
+        BEFORE UPDATE ON peer_insight_overall_summaries
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END $$;

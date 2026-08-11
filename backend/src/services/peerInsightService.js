@@ -218,11 +218,14 @@ async function getRawFeedbackForSubject(requesterUser, roundId, subjectId) {
  * on Leadership") instead of reading a flat per-reviewer list and having
  * to mentally cross-reference it themselves.
  */
-async function getCategoryBreakdown(requesterUser, roundId, subjectId) {
-  assertAdminTier(requesterUser);
-  const rawFeedback = await peerInsightModel.listRawFeedbackForSubject(roundId, subjectId);
-  const submitted = rawFeedback.filter((f) => f.status === 'submitted');
-
+/**
+ * Shared aggregation logic - takes a list of already-submitted feedback
+ * rows (each with category_scores, rating, comments) and produces the
+ * same breakdown shape whether that list is scoped to one round (the
+ * existing per-project view) or spans every round an employee is part
+ * of (the new cross-project overall view below).
+ */
+function buildBreakdownFromFeedback(submitted) {
   const categories = FEEDBACK_CATEGORIES.map((cat) => {
     const responses = submitted
       .filter((f) => f.category_scores?.[cat.key]?.score)
@@ -242,6 +245,13 @@ async function getCategoryBreakdown(requesterUser, roundId, subjectId) {
   const finalThoughts = submitted.filter((f) => f.comments).map((f) => f.comments);
 
   return { reviewerCount: submitted.length, overallRatingAvg, categories, finalThoughts };
+}
+
+async function getCategoryBreakdown(requesterUser, roundId, subjectId) {
+  assertAdminTier(requesterUser);
+  const rawFeedback = await peerInsightModel.listRawFeedbackForSubject(roundId, subjectId);
+  const submitted = rawFeedback.filter((f) => f.status === 'submitted');
+  return buildBreakdownFromFeedback(submitted);
 }
 
 /**
@@ -323,6 +333,96 @@ async function listMyReleasedSummaries(requesterUser) {
   return peerInsightModel.listReleasedSummariesForEmployee(requesterUser.id);
 }
 
+// --- Cross-project: search an employee across every group they're in,
+// see each project's breakdown side by side, and curate one overall
+// summary spanning all of it (Item: multi-project 360 search) ---
+
+async function searchSubjectsWithFeedback(requesterUser, term) {
+  assertAdminTier(requesterUser);
+  if (!term || term.trim().length < 2) return [];
+  return peerInsightModel.searchSubjectsWithFeedback(term.trim());
+}
+
+/**
+ * @returns {{ subject, projects: Array<{roundId, roundName, groupId, groupName, breakdown}>, overall }}
+ *   `overall` is the exact same shape as each project's breakdown, just
+ *   built from every submitted feedback row across all of the
+ *   employee's projects combined - the frontend's existing summary
+ *   generator works on it completely unmodified.
+ */
+async function getCrossProjectBreakdown(requesterUser, subjectId) {
+  assertAdminTier(requesterUser);
+  const subject = await userModel.findById(subjectId);
+  if (!subject) throw AppError.notFound('Employee not found');
+
+  const [rounds, allFeedback] = await Promise.all([
+    peerInsightModel.listRoundsForSubject(subjectId),
+    peerInsightModel.listAllRawFeedbackForSubject(subjectId),
+  ]);
+
+  const projects = rounds.map((r) => {
+    const feedbackForRound = allFeedback.filter((f) => f.round_id === r.round_id);
+    return {
+      roundId: r.round_id,
+      roundName: r.round_name,
+      groupId: r.group_id,
+      groupName: r.group_name,
+      breakdown: buildBreakdownFromFeedback(feedbackForRound),
+    };
+  });
+
+  const overall = buildBreakdownFromFeedback(allFeedback);
+
+  return { subject, projects, overall };
+}
+
+async function getOverallSummary(requesterUser, subjectId) {
+  assertAdminTier(requesterUser);
+  return peerInsightModel.findOverallSummary(subjectId);
+}
+
+async function saveOverallSummary(requesterUser, subjectId, summaryText) {
+  assertAdminTier(requesterUser);
+  if (!summaryText || !summaryText.trim()) {
+    throw AppError.badRequest('Summary text cannot be empty.');
+  }
+  return peerInsightModel.upsertOverallSummary({ subjectId, summaryText, createdBy: requesterUser.id });
+}
+
+async function releaseOverallSummary(requesterUser, subjectId) {
+  assertAdminTier(requesterUser);
+  const summary = await peerInsightModel.findOverallSummary(subjectId);
+  if (!summary) throw AppError.notFound('No overall summary saved yet for this employee.');
+
+  const released = await peerInsightModel.releaseOverallSummary(subjectId, requesterUser.id);
+
+  const subject = await userModel.findById(subjectId);
+  if (subject) {
+    await notificationService.notifyUser({
+      userId: subject.id,
+      type: 'review_submitted',
+      title: 'Your 360° Feedback summary is ready',
+      message: 'HR has shared an overall summary of your peer feedback across all your projects.',
+      link: '/peer-insights',
+      email: subject.email,
+      recipientName: subject.first_name,
+    });
+  }
+  return released;
+}
+
+async function unreleaseOverallSummary(requesterUser, subjectId) {
+  assertAdminTier(requesterUser);
+  const summary = await peerInsightModel.unreleaseOverallSummary(subjectId);
+  if (!summary) throw AppError.notFound('Summary not found');
+  return summary;
+}
+
+/** Employee-facing: their own released overall summary, if HR has released one. */
+async function getMyReleasedOverallSummary(requesterUser) {
+  return peerInsightModel.findReleasedOverallSummaryForEmployee(requesterUser.id);
+}
+
 module.exports = {
   createGroup,
   listGroups,
@@ -347,4 +447,11 @@ module.exports = {
   releaseSummary,
   unreleaseSummary,
   listMyReleasedSummaries,
+  searchSubjectsWithFeedback,
+  getCrossProjectBreakdown,
+  getOverallSummary,
+  saveOverallSummary,
+  releaseOverallSummary,
+  unreleaseOverallSummary,
+  getMyReleasedOverallSummary,
 };

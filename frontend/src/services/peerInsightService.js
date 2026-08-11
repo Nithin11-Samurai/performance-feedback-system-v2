@@ -122,3 +122,39 @@ export async function listMyReleasedSummaries() {
   const { data } = await api.get('/peer-insights/my-summaries');
   return data.data.summaries;
 }
+
+export async function getMyReleasedOverallSummary() {
+  const { data } = await api.get('/peer-insights/my-overall-summary');
+  return data.data.summary;
+}
+
+// --- Cross-project (search an employee across every group they're in) ---
+export async function searchSubjects(term) {
+  const { data } = await api.get('/peer-insights/employees/search', { params: { q: term } });
+  return data.data.employees;
+}
+
+export async function getCrossProjectBreakdown(subjectId) {
+  const { data } = await api.get(`/peer-insights/employees/${subjectId}/cross-project`);
+  return data.data; // { subject, projects, overall }
+}
+
+export async function getOverallSummary(subjectId) {
+  const { data } = await api.get(`/peer-insights/employees/${subjectId}/overall-summary`);
+  return data.data.summary;
+}
+
+export async function saveOverallSummary(subjectId, summaryText) {
+  const { data } = await api.patch(`/peer-insights/employees/${subjectId}/overall-summary`, { summaryText });
+  return data.data.summary;
+}
+
+export async function releaseOverallSummary(subjectId) {
+  const { data } = await api.patch(`/peer-insights/employees/${subjectId}/overall-summary/release`);
+  return data.data.summary;
+}
+
+export async function unreleaseOverallSummary(subjectId) {
+  const { data } = await api.patch(`/peer-insights/employees/${subjectId}/overall-summary/unrelease`);
+  return data.data.summary;
+}

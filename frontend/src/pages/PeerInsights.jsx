@@ -12,6 +12,8 @@ import {
   Sparkles,
   CheckCircle2,
   ChevronDown,
+  Search,
+  Briefcase,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useAuth } from '../context/AuthContext';
@@ -44,6 +46,20 @@ function HrPeerInsightsView() {
   const [selectedRound, setSelectedRound] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  useEffect(() => {
+    if (searchTerm.trim().length < 2) {
+      setSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      peerInsightService.searchSubjects(searchTerm.trim()).then(setSearchResults);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   async function loadGroups() {
     const data = await peerInsightService.listGroups();
@@ -63,6 +79,10 @@ function HrPeerInsightsView() {
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to delete group.', 'error');
     }
+  }
+
+  if (selectedEmployee) {
+    return <EmployeeCrossProjectView employee={selectedEmployee} onBack={() => setSelectedEmployee(null)} />;
   }
 
   if (selectedRound) {
@@ -89,6 +109,48 @@ function HrPeerInsightsView() {
           who reviewed them, only HR sees raw feedback, and only a curated summary you write is ever shared
           with the employee, once you explicitly release it.
         </p>
+      </div>
+
+      <div className="card card-reviews relative">
+        <label className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <Search size={15} /> Find an employee across all their projects
+        </label>
+        <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search by name — e.g. Karan Bhadiadra"
+          className="input"
+        />
+        {searchTerm.trim().length >= 2 && (
+          <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-y-auto rounded-xl border border-primary-100 bg-white shadow-lg dark:border-primary-900 dark:bg-primary-950">
+            {searchResults === null ? (
+              <p className="p-3 text-sm text-ink-light/50 dark:text-ink-dark/50">Searching…</p>
+            ) : searchResults.length === 0 ? (
+              <p className="p-3 text-sm text-ink-light/50 dark:text-ink-dark/50">
+                No employee found with submitted feedback matching "{searchTerm}".
+              </p>
+            ) : (
+              searchResults.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => {
+                    setSelectedEmployee(e);
+                    setSearchTerm('');
+                    setSearchResults(null);
+                  }}
+                  className="flex w-full items-center justify-between border-b border-primary-50 px-3 py-2.5 text-left text-sm last:border-0 hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+                >
+                  <span className="font-medium">
+                    {e.first_name} {e.last_name}
+                  </span>
+                  <span className="text-xs text-ink-light/45 dark:text-ink-dark/45">
+                    {e.job_title || e.employee_code}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between">
@@ -151,6 +213,169 @@ function HrPeerInsightsView() {
         message="This removes the group and all its 360° Feedback history. This cannot be undone."
         confirmLabel="Delete"
       />
+    </div>
+  );
+}
+
+// ============================================================================
+// Cross-project view: one employee, every project they're part of, plus
+// one overall summary that spans all of them
+// ============================================================================
+
+function EmployeeCrossProjectView({ employee, onBack }) {
+  const { showToast } = useToast();
+  const [data, setData] = useState(null);
+  const [overallSummary, setOverallSummary] = useState(null);
+  const [summaryText, setSummaryText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [releasing, setReleasing] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      peerInsightService.getCrossProjectBreakdown(employee.id),
+      peerInsightService.getOverallSummary(employee.id),
+    ]).then(([breakdownData, summary]) => {
+      setData(breakdownData);
+      setOverallSummary(summary);
+      setSummaryText(summary?.summary_text || '');
+    });
+  }, [employee.id]);
+
+  function handleGenerateSummary() {
+    if (!data) return;
+    const draft = generateStructuredSummary(data.overall, employee.first_name);
+    if (!draft) {
+      showToast('No submitted feedback yet to summarize.', 'error');
+      return;
+    }
+    setSummaryText(draft);
+    showToast('Draft generated from all projects combined — review and edit before sending');
+  }
+
+  async function handleSaveSummary() {
+    setSaving(true);
+    try {
+      const saved = await peerInsightService.saveOverallSummary(employee.id, summaryText);
+      setOverallSummary(saved);
+      showToast('Overall summary saved');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to save summary.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRelease() {
+    setReleasing(true);
+    try {
+      const released = await peerInsightService.releaseOverallSummary(employee.id);
+      setOverallSummary(released);
+      showToast(`Released to ${employee.first_name}`);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to release.', 'error');
+    } finally {
+      setReleasing(false);
+    }
+  }
+
+  async function handleRevert() {
+    try {
+      const reverted = await peerInsightService.unreleaseOverallSummary(employee.id);
+      setOverallSummary(reverted);
+      showToast(`Reverted — no longer visible to ${employee.first_name}`);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to revert.', 'error');
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm text-ink-light/60 hover:underline dark:text-ink-dark/60"
+      >
+        <ChevronLeft size={15} /> Back
+      </button>
+
+      <div className="card card-reviews">
+        <h3 className="font-display text-lg font-semibold">
+          {employee.first_name} {employee.last_name}
+        </h3>
+        <p className="text-sm text-ink-light/55 dark:text-ink-dark/55">
+          {employee.job_title || 'No job title set'}
+          {employee.department ? ` · ${employee.department}` : ''}
+        </p>
+      </div>
+
+      {data === null ? (
+        <Skeleton className="h-40 w-full" />
+      ) : data.projects.length === 0 ? (
+        <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
+          No submitted 360° Feedback found for this employee yet.
+        </p>
+      ) : (
+        <>
+          {data.projects.map((p) => (
+            <div key={p.roundId} className="card card-reviews">
+              <div className="mb-3 flex items-center gap-2">
+                <Briefcase size={15} className="text-primary-600" />
+                <h4 className="font-display text-sm font-semibold">{p.groupName}</h4>
+                <span className="text-xs text-ink-light/40 dark:text-ink-dark/40">({p.roundName})</span>
+              </div>
+              <CategoryBreakdownList breakdown={p.breakdown} />
+            </div>
+          ))}
+
+          <div className="card card-reviews">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="flex items-center gap-2 font-display text-sm font-semibold">
+                <Sparkles size={15} /> Overall Summary — across all {data.projects.length} project
+                {data.projects.length === 1 ? '' : 's'}
+              </h4>
+              <button
+                onClick={handleGenerateSummary}
+                disabled={!data.overall?.reviewerCount}
+                className="btn-secondary text-xs disabled:opacity-40"
+              >
+                <Sparkles size={13} /> Generate Summary
+              </button>
+            </div>
+
+            {overallSummary?.released_to_employee && (
+              <div className="mb-2 flex items-center justify-between rounded-md bg-green-50 px-3 py-2 text-xs text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} /> Released to {employee.first_name} on{' '}
+                  {new Date(overallSummary.released_at).toLocaleDateString()}
+                </span>
+                <button onClick={handleRevert} className="font-medium underline">
+                  Revert
+                </button>
+              </div>
+            )}
+
+            <textarea
+              value={summaryText}
+              onChange={(e) => setSummaryText(e.target.value)}
+              rows={8}
+              placeholder="Write or generate an overall summary spanning everything this employee has been reviewed on, across all their projects..."
+              className="input"
+            />
+
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={handleSaveSummary} disabled={saving || !summaryText.trim()} className="btn-secondary text-xs">
+                {saving ? 'Saving…' : 'Save draft'}
+              </button>
+              <button
+                onClick={handleRelease}
+                disabled={releasing || !summaryText.trim()}
+                className="btn-primary text-xs"
+              >
+                <Send size={13} /> {releasing ? 'Releasing…' : 'Save & release to employee'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -668,6 +893,7 @@ function EmployeePeerInsightsView() {
   const { showToast } = useToast();
   const [assignments, setAssignments] = useState(null);
   const [summaries, setSummaries] = useState(null);
+  const [overallSummary, setOverallSummary] = useState(null);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState({});
   const [expandedId, setExpandedId] = useState(null);
@@ -687,6 +913,10 @@ function EmployeePeerInsightsView() {
       .listMyReleasedSummaries()
       .then(setSummaries)
       .catch(() => setSummaries([]));
+    peerInsightService
+      .getMyReleasedOverallSummary()
+      .then(setOverallSummary)
+      .catch(() => setOverallSummary(null));
   }, []);
 
   async function handleSaveDraft(assignment, payload) {
@@ -767,9 +997,29 @@ function EmployeePeerInsightsView() {
 
       <div>
         <h3 className="mb-3 font-display text-lg font-semibold">My 360° Feedback summaries</h3>
+
+        {overallSummary && (
+          <div className="mb-4 rounded-card border-l-4 border-accent-600 bg-accent-50/60 p-5 shadow-card dark:bg-accent-900/20">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm font-semibold text-accent-800 dark:text-accent-100">
+                <Briefcase size={15} /> Overall — across all your projects
+              </p>
+              {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
+                <Badge tone="primary">New</Badge>
+              )}
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+              {overallSummary.summary_text}
+            </p>
+            <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
+              Shared {new Date(overallSummary.released_at).toLocaleDateString()}
+            </p>
+          </div>
+        )}
+
         {summaries === null ? (
           <Skeleton className="h-24 w-full" />
-        ) : summaries.length === 0 ? (
+        ) : summaries.length === 0 && !overallSummary ? (
           <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
             No summaries shared with you yet.
           </p>

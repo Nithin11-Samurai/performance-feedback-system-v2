@@ -59,5 +59,14 @@ router.patch('/summaries/:summaryId/unrelease', adminOnly, peerInsightController
 
 // --- Employee-facing ---
 router.get('/my-summaries', peerInsightController.listMyReleasedSummaries);
+router.get('/my-overall-summary', peerInsightController.getMyReleasedOverallSummary);
+
+// --- Cross-project (search an employee across every group they're in) ---
+router.get('/employees/search', adminOnly, peerInsightController.searchSubjects);
+router.get('/employees/:subjectId/cross-project', adminOnly, peerInsightController.getCrossProjectBreakdown);
+router.get('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.getOverallSummary);
+router.patch('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.saveOverallSummary);
+router.patch('/employees/:subjectId/overall-summary/release', adminOnly, peerInsightController.releaseOverallSummary);
+router.patch('/employees/:subjectId/overall-summary/unrelease', adminOnly, peerInsightController.unreleaseOverallSummary);
 
 module.exports = router;

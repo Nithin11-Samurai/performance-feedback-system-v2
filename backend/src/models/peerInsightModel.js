@@ -269,6 +269,101 @@ async function listReleasedSummariesForEmployee(employeeId) {
   return result.rows;
 }
 
+// --- Cross-project (Item: search an employee, see every project they're
+// part of at once, curate one overall summary spanning all of them) ---
+
+/** Employees who have at least one submitted feedback row as a subject, matching the search term. */
+async function searchSubjectsWithFeedback(term) {
+  const result = await query(
+    `SELECT DISTINCT s.id, s.first_name, s.last_name, s.employee_code, s.job_title, s.department
+     FROM peer_insight_feedback f
+     JOIN users s ON s.id = f.subject_id
+     WHERE f.status = 'submitted'
+       AND (s.first_name ILIKE $1 OR s.last_name ILIKE $1 OR (s.first_name || ' ' || s.last_name) ILIKE $1)
+     ORDER BY s.first_name
+     LIMIT 20`,
+    [`%${term}%`]
+  );
+  return result.rows;
+}
+
+/** Every round (project) this employee has submitted feedback in, with its group name. */
+async function listRoundsForSubject(subjectId) {
+  const result = await query(
+    `SELECT DISTINCT r.id AS round_id, r.name AS round_name, g.id AS group_id, g.name AS group_name
+     FROM peer_insight_feedback f
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     JOIN project_groups g ON g.id = r.project_group_id
+     WHERE f.subject_id = $1 AND f.status = 'submitted'
+     ORDER BY g.name`,
+    [subjectId]
+  );
+  return result.rows;
+}
+
+/** ALL of this employee's submitted feedback across every project at once, for the overall/combined breakdown. */
+async function listAllRawFeedbackForSubject(subjectId) {
+  const result = await query(
+    `SELECT f.*, r.name AS round_name, g.name AS group_name,
+            rv.first_name AS reviewer_first_name, rv.last_name AS reviewer_last_name
+     FROM peer_insight_feedback f
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     JOIN project_groups g ON g.id = r.project_group_id
+     JOIN users rv ON rv.id = f.reviewer_id
+     WHERE f.subject_id = $1 AND f.status = 'submitted'
+     ORDER BY g.name, f.submitted_at`,
+    [subjectId]
+  );
+  return result.rows;
+}
+
+async function upsertOverallSummary({ subjectId, summaryText, createdBy }) {
+  const result = await query(
+    `INSERT INTO peer_insight_overall_summaries (subject_id, summary_text, created_by)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (subject_id)
+     DO UPDATE SET summary_text = EXCLUDED.summary_text, updated_at = NOW(),
+                   released_to_employee = FALSE, released_by = NULL, released_at = NULL
+     RETURNING *`,
+    [subjectId, summaryText, createdBy]
+  );
+  return result.rows[0];
+}
+
+async function findOverallSummary(subjectId) {
+  const result = await query('SELECT * FROM peer_insight_overall_summaries WHERE subject_id = $1', [subjectId]);
+  return result.rows[0] || null;
+}
+
+async function releaseOverallSummary(subjectId, releasedBy) {
+  const result = await query(
+    `UPDATE peer_insight_overall_summaries
+     SET released_to_employee = TRUE, released_by = $2, released_at = NOW()
+     WHERE subject_id = $1 RETURNING *`,
+    [subjectId, releasedBy]
+  );
+  return result.rows[0] || null;
+}
+
+async function unreleaseOverallSummary(subjectId) {
+  const result = await query(
+    `UPDATE peer_insight_overall_summaries
+     SET released_to_employee = FALSE, released_by = NULL, released_at = NULL
+     WHERE subject_id = $1 RETURNING *`,
+    [subjectId]
+  );
+  return result.rows[0] || null;
+}
+
+/** Employee-facing: their own released overall summary, if one exists. */
+async function findReleasedOverallSummaryForEmployee(employeeId) {
+  const result = await query(
+    'SELECT * FROM peer_insight_overall_summaries WHERE subject_id = $1 AND released_to_employee = TRUE',
+    [employeeId]
+  );
+  return result.rows[0] || null;
+}
+
 module.exports = {
   createGroup,
   listGroups,
@@ -296,4 +391,12 @@ module.exports = {
   releaseSummary,
   unreleaseSummary,
   listReleasedSummariesForEmployee,
+  searchSubjectsWithFeedback,
+  listRoundsForSubject,
+  listAllRawFeedbackForSubject,
+  upsertOverallSummary,
+  findOverallSummary,
+  releaseOverallSummary,
+  unreleaseOverallSummary,
+  findReleasedOverallSummaryForEmployee,
 };
