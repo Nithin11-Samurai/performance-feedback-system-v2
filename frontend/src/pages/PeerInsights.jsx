@@ -446,6 +446,24 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                 </button>
                 {isOpen && (
                   <div className="px-3 pb-3 text-sm">
+                    {schema && f.category_scores && (
+                      <div className="mb-3 flex flex-wrap gap-1.5">
+                        {schema.categories.map((c) => {
+                          const entry = f.category_scores[c.key];
+                          if (!entry?.score) return null;
+                          const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
+                          return (
+                            <span
+                              key={c.key}
+                              title={entry.comment || undefined}
+                              className="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-800 dark:bg-primary-900/60 dark:text-primary-100"
+                            >
+                              {c.label}: {levelLabel}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                     {reviewerSummary?.body && <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>}
                     {reviewerSummary?.finalThoughts && (
                       <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
@@ -586,7 +604,6 @@ function EmployeeCrossProjectView({ employee, onBack }) {
                   <div className="flex items-center gap-3">
                     {!isExpanded && (
                       <span className="text-xs text-ink-light/50 dark:text-ink-dark/50">
-                        {p.breakdown.overallRatingAvg ? `avg ${p.breakdown.overallRatingAvg}/5 · ` : ''}
                         {p.breakdown.reviewerCount} reviewer{p.breakdown.reviewerCount === 1 ? '' : 's'}
                       </span>
                     )}
@@ -598,7 +615,6 @@ function EmployeeCrossProjectView({ employee, onBack }) {
                 </button>
                 {isExpanded && (
                   <div className="mt-3">
-                    <CategoryBreakdownList breakdown={p.breakdown} />
                     <PerReviewerDetail roundId={p.roundId} subjectId={employee.id} schema={schema} />
                   </div>
                 )}
