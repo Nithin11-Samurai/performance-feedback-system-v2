@@ -14,6 +14,9 @@ import {
   ChevronDown,
   Search,
   Briefcase,
+  BarChart3,
+  FileSpreadsheet,
+  FileDown,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useAuth } from '../context/AuthContext';
@@ -53,6 +56,7 @@ function HrPeerInsightsView() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [distribution, setDistribution] = useState(null);
   const [expandedBucket, setExpandedBucket] = useState(null);
+  const [bucketFilter, setBucketFilter] = useState('');
   const [groupsOpen, setGroupsOpen] = useState(true);
 
   async function toggleDashboard() {
@@ -126,6 +130,120 @@ function HrPeerInsightsView() {
         </p>
       </div>
 
+      <div className="card card-reviews">
+        <button onClick={toggleDashboard} className="flex w-full items-center justify-between gap-2 text-left">
+          <h3 className="flex items-center gap-2 font-display text-base font-semibold">
+            <BarChart3 size={17} className="text-primary-600" /> 360° Feedback Rating Overview
+          </h3>
+          <ChevronDown size={16} className={`text-ink-light/40 transition-transform ${dashboardOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {dashboardOpen && (
+          <div className="mt-4">
+            {distribution === null ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-semibold leading-6 text-primary-700 dark:text-primary-300">
+                      {distribution.totalEmployees}
+                    </p>
+                    <p className="text-xs text-ink-light/55 dark:text-ink-dark/55">
+                      employee{distribution.totalEmployees === 1 ? '' : 's'} with submitted 360° Feedback, org-wide
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => peerInsightService.exportRatingDistributionExcel()}
+                      className="btn-secondary text-xs"
+                    >
+                      <FileSpreadsheet size={13} /> Export Excel
+                    </button>
+                    <button
+                      onClick={() => peerInsightService.exportRatingDistributionPdf()}
+                      className="btn-secondary text-xs"
+                    >
+                      <FileDown size={13} /> Export PDF
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {distribution.buckets.map((b) => {
+                    const pct = distribution.totalEmployees > 0 ? (b.count / distribution.totalEmployees) * 100 : 0;
+                    const isSelected = expandedBucket === b.rating;
+                    return (
+                      <button
+                        key={b.rating}
+                        onClick={() => {
+                          setExpandedBucket(isSelected ? null : b.rating);
+                          setBucketFilter('');
+                        }}
+                        className={`rounded-xl border p-3 text-center transition-colors ${
+                          isSelected
+                            ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/40'
+                            : 'border-primary-50 hover:bg-primary-50/60 dark:border-primary-900/50'
+                        }`}
+                      >
+                        <p className="text-xl font-semibold text-primary-700 dark:text-primary-300">{b.rating}/5</p>
+                        <p className="mb-2 text-xs text-ink-light/50 dark:text-ink-dark/50">
+                          {b.count} employee{b.count === 1 ? '' : 's'}
+                        </p>
+                        <div className="h-1 overflow-hidden rounded-full bg-primary-50 dark:bg-primary-900/30">
+                          <div className="h-full rounded-full bg-primary-400" style={{ width: `${pct}%` }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {expandedBucket !== null &&
+                  (() => {
+                    const bucket = distribution.buckets.find((b) => b.rating === expandedBucket);
+                    const filtered = bucket.employees
+                      .filter((e) => `${e.first_name} ${e.last_name}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
+                      .sort((a, b) => a.first_name.localeCompare(b.first_name));
+                    return (
+                      <div className="mt-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50">
+                        {bucket.employees.length === 0 ? (
+                          <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
+                        ) : (
+                          <>
+                            {bucket.employees.length > 8 && (
+                              <input
+                                value={bucketFilter}
+                                onChange={(e) => setBucketFilter(e.target.value)}
+                                placeholder={`Filter ${bucket.count} names…`}
+                                className="input mb-2 text-sm"
+                              />
+                            )}
+                            <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
+                              {filtered.map((e) => (
+                                <li key={e.id} className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-primary-50/60 dark:hover:bg-primary-900/30">
+                                  <span>
+                                    {e.first_name} {e.last_name}
+                                  </span>
+                                  <span className="text-xs text-ink-light/45 dark:text-ink-dark/45">avg {e.avg_rating}/5</span>
+                                </li>
+                              ))}
+                            </ul>
+                            {filtered.length === 0 && (
+                              <p className="py-2 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+                                No names match "{bucketFilter}".
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="relative">
         <div className="card card-reviews">
           <label className="mb-2 flex items-center gap-2 text-sm font-medium">
@@ -165,84 +283,6 @@ function HrPeerInsightsView() {
                   </span>
                 </button>
               ))
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="card card-reviews">
-        <button onClick={toggleDashboard} className="flex w-full items-center justify-between gap-2 text-left">
-          <h3 className="font-display text-base font-semibold">360° Feedback Rating Overview</h3>
-          <ChevronDown size={16} className={`text-ink-light/40 transition-transform ${dashboardOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {dashboardOpen && (
-          <div className="mt-4">
-            {distribution === null ? (
-              <Skeleton className="h-32 w-full" />
-            ) : (
-              <>
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm text-ink-light/55 dark:text-ink-dark/55">
-                    {distribution.totalEmployees} employee{distribution.totalEmployees === 1 ? '' : 's'} with submitted
-                    360° Feedback, org-wide
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => peerInsightService.exportRatingDistributionExcel()}
-                      className="btn-secondary text-xs"
-                    >
-                      Export Excel
-                    </button>
-                    <button
-                      onClick={() => peerInsightService.exportRatingDistributionPdf()}
-                      className="btn-secondary text-xs"
-                    >
-                      Export PDF
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2">
-                  {distribution.buckets.map((b) => (
-                    <button
-                      key={b.rating}
-                      onClick={() => setExpandedBucket(expandedBucket === b.rating ? null : b.rating)}
-                      className={`rounded-xl border p-3 text-center transition-colors ${
-                        expandedBucket === b.rating
-                          ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/40'
-                          : 'border-primary-50 hover:bg-primary-50/60 dark:border-primary-900/50'
-                      }`}
-                    >
-                      <p className="text-xl font-semibold text-primary-700 dark:text-primary-300">{b.rating}/5</p>
-                      <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
-                        {b.count} employee{b.count === 1 ? '' : 's'}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-
-                {expandedBucket !== null && (
-                  <div className="mt-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50">
-                    {distribution.buckets.find((b) => b.rating === expandedBucket)?.employees.length === 0 ? (
-                      <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
-                    ) : (
-                      <ul className="space-y-1 text-sm">
-                        {distribution.buckets
-                          .find((b) => b.rating === expandedBucket)
-                          .employees.map((e) => (
-                            <li key={e.id} className="flex items-center justify-between">
-                              <span>
-                                {e.first_name} {e.last_name}
-                              </span>
-                              <span className="text-xs text-ink-light/45 dark:text-ink-dark/45">avg {e.avg_rating}/5</span>
-                            </li>
-                          ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </>
             )}
           </div>
         )}
