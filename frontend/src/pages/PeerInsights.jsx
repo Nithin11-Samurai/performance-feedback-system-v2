@@ -56,7 +56,10 @@ function HrPeerInsightsView() {
       return;
     }
     const timer = setTimeout(() => {
-      peerInsightService.searchSubjects(searchTerm.trim()).then(setSearchResults);
+      peerInsightService
+        .searchSubjects(searchTerm.trim())
+        .then(setSearchResults)
+        .catch(() => setSearchResults([]));
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -111,18 +114,20 @@ function HrPeerInsightsView() {
         </p>
       </div>
 
-      <div className="card card-reviews relative">
-        <label className="mb-2 flex items-center gap-2 text-sm font-medium">
-          <Search size={15} /> Find an employee across all their projects
-        </label>
-        <input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by name — e.g. Karan Bhadiadra"
-          className="input"
-        />
+      <div className="relative">
+        <div className="card card-reviews">
+          <label className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <Search size={15} /> Find an employee across all their projects
+          </label>
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by name — e.g. Karan Bhadiadra"
+            className="input"
+          />
+        </div>
         {searchTerm.trim().length >= 2 && (
-          <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-64 overflow-y-auto rounded-xl border border-primary-100 bg-white shadow-lg dark:border-primary-900 dark:bg-primary-950">
+          <div className="absolute left-5 right-5 top-full z-10 mt-1 max-h-64 overflow-y-auto rounded-xl border border-primary-100 bg-white shadow-lg dark:border-primary-900 dark:bg-primary-950">
             {searchResults === null ? (
               <p className="p-3 text-sm text-ink-light/50 dark:text-ink-dark/50">Searching…</p>
             ) : searchResults.length === 0 ? (
