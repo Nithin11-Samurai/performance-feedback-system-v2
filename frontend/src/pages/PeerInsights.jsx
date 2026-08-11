@@ -49,6 +49,7 @@ function HrPeerInsightsView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [groupFilter, setGroupFilter] = useState('');
 
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
@@ -117,7 +118,7 @@ function HrPeerInsightsView() {
       <div className="relative">
         <div className="card card-reviews">
           <label className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <Search size={15} /> Find an employee across all their projects
+            <Search size={15} /> Employee Feedback Lookup
           </label>
           <input
             value={searchTerm}
@@ -165,6 +166,15 @@ function HrPeerInsightsView() {
         </button>
       </div>
 
+      {groups !== null && groups.length > 6 && (
+        <input
+          value={groupFilter}
+          onChange={(e) => setGroupFilter(e.target.value)}
+          placeholder="Filter project groups by name…"
+          className="input"
+        />
+      )}
+
       {groups === null ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
@@ -179,25 +189,34 @@ function HrPeerInsightsView() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {groups.map((g) => (
-            <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
-              <div className="mb-2 flex items-start justify-between">
-                <h4 className="font-display text-base font-semibold">{g.name}</h4>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmDeleteGroup(g);
-                  }}
-                  className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
-              <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
-            </div>
-          ))}
+        <div className="max-h-[560px] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {groups
+              .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
+              .map((g) => (
+                <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
+                  <div className="mb-2 flex items-start justify-between">
+                    <h4 className="font-display text-base font-semibold">{g.name}</h4>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteGroup(g);
+                      }}
+                      className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
+                  <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
+                </div>
+              ))}
+          </div>
+          {groups.filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase())).length === 0 && (
+            <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              No project groups match "{groupFilter}".
+            </p>
+          )}
         </div>
       )}
 
@@ -227,15 +246,68 @@ function HrPeerInsightsView() {
 // one overall summary that spans all of them
 // ============================================================================
 
+/**
+ * Same "full detail by reviewer" pattern already used in the
+ * single-project view, extracted so the cross-project view can use it
+ * per-project too, without duplicating the fetch/render logic.
+ */
+function PerReviewerDetail({ roundId, subjectId, schema }) {
+  const [expanded, setExpanded] = useState(false);
+  const [rawFeedback, setRawFeedback] = useState(null);
+
+  async function toggle() {
+    if (!expanded && rawFeedback === null) {
+      const feedback = await peerInsightService.getRawFeedback(roundId, subjectId);
+      setRawFeedback(feedback);
+    }
+    setExpanded((v) => !v);
+  }
+
+  return (
+    <>
+      <button onClick={toggle} className="mt-4 text-xs text-primary-600 hover:underline dark:text-primary-300">
+        {expanded ? 'Hide' : 'Show'} individual reviewer feedback
+      </button>
+      {expanded && rawFeedback && (
+        <div className="mt-3 space-y-3">
+          {rawFeedback.map((f) => {
+            const reviewerSummary =
+              schema && f.category_scores
+                ? generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)
+                : null;
+            return (
+              <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
+                <p className="mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+                  From {f.reviewer_first_name} {f.reviewer_last_name} {f.rating && `· Overall ${f.rating}/5`}
+                </p>
+                {reviewerSummary?.body && <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>}
+                {reviewerSummary?.finalThoughts && (
+                  <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
+                    Final thoughts: "{reviewerSummary.finalThoughts}"
+                  </p>
+                )}
+                {f.strengths && <p>Strengths: {f.strengths}</p>}
+                {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 function EmployeeCrossProjectView({ employee, onBack }) {
   const { showToast } = useToast();
   const [data, setData] = useState(null);
+  const [schema, setSchema] = useState(null);
   const [overallSummary, setOverallSummary] = useState(null);
   const [summaryText, setSummaryText] = useState('');
   const [saving, setSaving] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
   useEffect(() => {
+    peerInsightService.getFeedbackFormSchema().then(setSchema);
     Promise.all([
       peerInsightService.getCrossProjectBreakdown(employee.id),
       peerInsightService.getOverallSummary(employee.id),
@@ -328,6 +400,7 @@ function EmployeeCrossProjectView({ employee, onBack }) {
                 <span className="text-xs text-ink-light/40 dark:text-ink-dark/40">({p.roundName})</span>
               </div>
               <CategoryBreakdownList breakdown={p.breakdown} />
+              <PerReviewerDetail roundId={p.roundId} subjectId={employee.id} schema={schema} />
             </div>
           ))}
 
