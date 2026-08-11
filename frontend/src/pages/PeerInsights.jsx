@@ -50,6 +50,17 @@ function HrPeerInsightsView() {
   const [searchResults, setSearchResults] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [groupFilter, setGroupFilter] = useState('');
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [distribution, setDistribution] = useState(null);
+  const [expandedBucket, setExpandedBucket] = useState(null);
+  const [groupsOpen, setGroupsOpen] = useState(true);
+
+  async function toggleDashboard() {
+    if (!dashboardOpen && distribution === null) {
+      peerInsightService.getRatingDistribution().then(setDistribution);
+    }
+    setDashboardOpen((v) => !v);
+  }
 
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
@@ -159,65 +170,150 @@ function HrPeerInsightsView() {
         )}
       </div>
 
+      <div className="card card-reviews">
+        <button onClick={toggleDashboard} className="flex w-full items-center justify-between gap-2 text-left">
+          <h3 className="font-display text-base font-semibold">360° Feedback Rating Overview</h3>
+          <ChevronDown size={16} className={`text-ink-light/40 transition-transform ${dashboardOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {dashboardOpen && (
+          <div className="mt-4">
+            {distribution === null ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <>
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm text-ink-light/55 dark:text-ink-dark/55">
+                    {distribution.totalEmployees} employee{distribution.totalEmployees === 1 ? '' : 's'} with submitted
+                    360° Feedback, org-wide
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => peerInsightService.exportRatingDistributionExcel()}
+                      className="btn-secondary text-xs"
+                    >
+                      Export Excel
+                    </button>
+                    <button
+                      onClick={() => peerInsightService.exportRatingDistributionPdf()}
+                      className="btn-secondary text-xs"
+                    >
+                      Export PDF
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {distribution.buckets.map((b) => (
+                    <button
+                      key={b.rating}
+                      onClick={() => setExpandedBucket(expandedBucket === b.rating ? null : b.rating)}
+                      className={`rounded-xl border p-3 text-center transition-colors ${
+                        expandedBucket === b.rating
+                          ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/40'
+                          : 'border-primary-50 hover:bg-primary-50/60 dark:border-primary-900/50'
+                      }`}
+                    >
+                      <p className="text-xl font-semibold text-primary-700 dark:text-primary-300">{b.rating}/5</p>
+                      <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                        {b.count} employee{b.count === 1 ? '' : 's'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {expandedBucket !== null && (
+                  <div className="mt-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50">
+                    {distribution.buckets.find((b) => b.rating === expandedBucket)?.employees.length === 0 ? (
+                      <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
+                    ) : (
+                      <ul className="space-y-1 text-sm">
+                        {distribution.buckets
+                          .find((b) => b.rating === expandedBucket)
+                          .employees.map((e) => (
+                            <li key={e.id} className="flex items-center justify-between">
+                              <span>
+                                {e.first_name} {e.last_name}
+                              </span>
+                              <span className="text-xs text-ink-light/45 dark:text-ink-dark/45">avg {e.avg_rating}/5</span>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-lg font-semibold">Project Groups</h3>
+        <button onClick={() => setGroupsOpen((v) => !v)} className="flex items-center gap-2">
+          <h3 className="font-display text-lg font-semibold">Project Groups</h3>
+          <ChevronDown size={16} className={`text-ink-light/40 transition-transform ${groupsOpen ? 'rotate-180' : ''}`} />
+        </button>
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> New project group
         </button>
       </div>
 
-      {groups !== null && groups.length > 6 && (
-        <input
-          value={groupFilter}
-          onChange={(e) => setGroupFilter(e.target.value)}
-          placeholder="Filter project groups by name…"
-          className="input"
-        />
-      )}
-
-      {groups === null ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full" />
-          ))}
-        </div>
-      ) : groups.length === 0 ? (
-        <div className="card card-reviews flex flex-col items-center gap-2 py-16 text-center">
-          <Users2 size={28} className="text-primary-300" />
-          <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
-            No project groups yet. Create one to start running 360° Feedback.
-          </p>
-        </div>
-      ) : (
-        <div className="max-h-[560px] overflow-y-auto pr-1">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {groups
-              .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
-              .map((g) => (
-                <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
-                  <div className="mb-2 flex items-start justify-between">
-                    <h4 className="font-display text-base font-semibold">{g.name}</h4>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDeleteGroup(g);
-                      }}
-                      className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
-                  <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
-                </div>
-              ))}
-          </div>
-          {groups.filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase())).length === 0 && (
-            <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-              No project groups match "{groupFilter}".
-            </p>
+      {groupsOpen && (
+        <>
+          {groups !== null && groups.length > 6 && (
+            <input
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              placeholder="Filter project groups by name…"
+              className="input"
+            />
           )}
-        </div>
+
+          {groups === null ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-28 w-full" />
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="card card-reviews flex flex-col items-center gap-2 py-16 text-center">
+              <Users2 size={28} className="text-primary-300" />
+              <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
+                No project groups yet. Create one to start running 360° Feedback.
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-[560px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {groups
+                  .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
+                  .map((g) => (
+                    <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
+                      <div className="mb-2 flex items-start justify-between">
+                        <h4 className="font-display text-base font-semibold">{g.name}</h4>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteGroup(g);
+                          }}
+                          className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
+                      <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
+                    </div>
+                  ))}
+              </div>
+              {groups.filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase())).length === 0 && (
+                <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+                  No project groups match "{groupFilter}".
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <CreateGroupModal
@@ -252,42 +348,74 @@ function HrPeerInsightsView() {
  * per-project too, without duplicating the fetch/render logic.
  */
 function PerReviewerDetail({ roundId, subjectId, schema }) {
-  const [expanded, setExpanded] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [rawFeedback, setRawFeedback] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
 
-  async function toggle() {
-    if (!expanded && rawFeedback === null) {
+  async function ensureLoaded() {
+    if (!loaded) {
       const feedback = await peerInsightService.getRawFeedback(roundId, subjectId);
       setRawFeedback(feedback);
+      setLoaded(true);
     }
-    setExpanded((v) => !v);
+  }
+
+  function toggleReviewer(id) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   return (
     <>
-      <button onClick={toggle} className="mt-4 text-xs text-primary-600 hover:underline dark:text-primary-300">
-        {expanded ? 'Hide' : 'Show'} individual reviewer feedback
+      <button
+        onClick={ensureLoaded}
+        className="mt-4 text-xs text-primary-600 hover:underline dark:text-primary-300"
+      >
+        {loaded ? 'Individual reviewer feedback' : 'Show individual reviewer feedback'}
       </button>
-      {expanded && rawFeedback && (
-        <div className="mt-3 space-y-3">
+      {loaded && rawFeedback && (
+        <div className="mt-3 space-y-2">
           {rawFeedback.map((f) => {
+            const isOpen = expandedIds.has(f.id);
             const reviewerSummary =
               schema && f.category_scores
                 ? generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)
                 : null;
             return (
-              <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
-                <p className="mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
-                  From {f.reviewer_first_name} {f.reviewer_last_name} {f.rating && `· Overall ${f.rating}/5`}
-                </p>
-                {reviewerSummary?.body && <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>}
-                {reviewerSummary?.finalThoughts && (
-                  <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
-                    Final thoughts: "{reviewerSummary.finalThoughts}"
-                  </p>
+              <div key={f.id} className="rounded-md bg-primary-50/50 dark:bg-primary-900/20">
+                <button
+                  onClick={() => toggleReviewer(f.id)}
+                  className="flex w-full items-center justify-between gap-2 p-3 text-left"
+                >
+                  <span className="text-sm font-medium">
+                    {f.reviewer_first_name} {f.reviewer_last_name}
+                    {f.rating && (
+                      <span className="ml-2 text-xs font-normal text-ink-light/50 dark:text-ink-dark/50">
+                        Overall {f.rating}/5
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`flex-shrink-0 text-ink-light/40 transition-transform dark:text-ink-dark/40 ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-3 pb-3 text-sm">
+                    {reviewerSummary?.body && <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>}
+                    {reviewerSummary?.finalThoughts && (
+                      <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
+                        Final thoughts: "{reviewerSummary.finalThoughts}"
+                      </p>
+                    )}
+                    {f.strengths && <p>Strengths: {f.strengths}</p>}
+                    {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
+                  </div>
                 )}
-                {f.strengths && <p>Strengths: {f.strengths}</p>}
-                {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
               </div>
             );
           })}
@@ -574,6 +702,8 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   const [rounds, setRounds] = useState(null);
   const [starting, setStarting] = useState(false);
   const [addPersonOpen, setAddPersonOpen] = useState(false);
+  const [editingMembers, setEditingMembers] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(null);
 
   async function loadRounds() {
     const data = await peerInsightService.listRoundsForGroup(group.id);
@@ -619,6 +749,8 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
       showToast(`${person.first_name} removed`);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to remove member.', 'error');
+    } finally {
+      setConfirmRemove(null);
     }
   }
 
@@ -641,20 +773,46 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
 
         <div className="mb-2 flex items-center justify-between">
           <h4 className="text-sm font-semibold">Members ({group.members.length})</h4>
-          <button onClick={() => setAddPersonOpen(true)} className="text-xs text-primary-600 hover:underline dark:text-primary-300">
-            + Add member
-          </button>
+          <div className="flex items-center gap-3">
+            {editingMembers && (
+              <button onClick={() => setAddPersonOpen(true)} className="text-xs text-primary-600 hover:underline dark:text-primary-300">
+                + Add member
+              </button>
+            )}
+            <button
+              onClick={() => setEditingMembers((v) => !v)}
+              className="text-xs text-ink-light/60 hover:underline dark:text-ink-dark/60"
+            >
+              {editingMembers ? 'Done' : 'Edit members'}
+            </button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {group.members.map((m) => (
             <span key={m.id} className="flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs dark:bg-primary-900/40">
               {m.first_name} {m.last_name}
-              <button onClick={() => handleRemoveMember(m)} className="text-ink-light/40 hover:text-danger">
-                ×
-              </button>
+              {editingMembers && (
+                <button onClick={() => setConfirmRemove(m)} className="text-ink-light/40 hover:text-danger">
+                  ×
+                </button>
+              )}
             </span>
           ))}
         </div>
+
+        <ConfirmDialog
+          open={!!confirmRemove}
+          onClose={() => setConfirmRemove(null)}
+          onConfirm={() => handleRemoveMember(confirmRemove)}
+          title="Remove member"
+          message={
+            confirmRemove
+              ? `Remove ${confirmRemove.first_name} ${confirmRemove.last_name} from "${group.name}"? Any feedback they've already submitted or received stays intact — this only removes them from future rounds in this group.`
+              : ''
+          }
+          confirmLabel="Remove"
+          danger
+        />
       </div>
 
       <div className="card card-reviews">
@@ -695,20 +853,37 @@ function RoundDetail({ round, group, onBack }) {
   const [subjects, setSubjects] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [assignmentDetail, setAssignmentDetail] = useState(null);
+  const [showStatusDetail, setShowStatusDetail] = useState(false);
+  const [reminding, setReminding] = useState(null);
 
   async function load() {
-    const [comp, subs] = await Promise.all([
+    const [comp, subs, detail] = await Promise.all([
       peerInsightService.getCompletionSummary(round.id),
       peerInsightService.listSubjectsInRound(round.id),
+      peerInsightService.getRoundAssignmentDetail(round.id),
     ]);
     setCompletion(comp);
     setSubjects(subs);
+    setAssignmentDetail(detail);
   }
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round.id]);
+
+  async function handleRemind(feedbackId) {
+    setReminding(feedbackId);
+    try {
+      const result = await peerInsightService.remindReviewer(feedbackId);
+      showToast(result.message);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to send reminder.', 'error');
+    } finally {
+      setReminding(null);
+    }
+  }
 
   async function handleClose() {
     try {
@@ -746,10 +921,45 @@ function RoundDetail({ round, group, onBack }) {
             )}
           </div>
         </div>
-        <div className="flex gap-4 text-sm">
+        <button
+          onClick={() => setShowStatusDetail((v) => !v)}
+          className="flex items-center gap-4 text-sm hover:opacity-80"
+          title="Click to see who's submitted and who's pending"
+        >
           <span className="text-success">{submittedCount} submitted</span>
           <span className="text-ink-light/50 dark:text-ink-dark/50">{pendingCount} pending</span>
-        </div>
+          <ChevronDown size={14} className={`text-ink-light/40 transition-transform ${showStatusDetail ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showStatusDetail && (
+          <div className="mt-3 space-y-1.5 border-t border-primary-50 pt-3 dark:border-primary-900/50">
+            {assignmentDetail === null ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
+              assignmentDetail.map((a) => (
+                <div key={a.id} className="flex items-center justify-between text-sm">
+                  <span>
+                    {a.reviewer_first_name} {a.reviewer_last_name}
+                    <span className="ml-2 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                      reviewing {a.subject_first_name} {a.subject_last_name}
+                    </span>
+                  </span>
+                  {a.status === 'submitted' ? (
+                    <Badge tone="success">Submitted</Badge>
+                  ) : (
+                    <button
+                      onClick={() => handleRemind(a.id)}
+                      disabled={reminding === a.id}
+                      className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
+                    >
+                      {reminding === a.id ? 'Sending…' : 'Remind'}
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       <div className="card card-reviews">

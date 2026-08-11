@@ -154,6 +154,79 @@ async function listSubjectsInRound(requesterUser, roundId) {
   return peerInsightModel.listSubjectsInRound(roundId);
 }
 
+/** Every reviewer<->subject pair in a round with names and status - for the "who's submitted, who's pending" hover detail. */
+async function getRoundAssignmentDetail(requesterUser, roundId) {
+  assertAdminTier(requesterUser);
+  return peerInsightModel.listAssignmentsWithStatusForRound(roundId);
+}
+
+/**
+ * Org-wide 360 Feedback rating distribution: every employee with at
+ * least one submitted feedback, bucketed by their average overall
+ * rating rounded to the nearest whole number (1-5). Powers the
+ * collapsible dashboard on the main 360° Feedback page.
+ */
+async function getRatingDistribution(requesterUser) {
+  assertAdminTier(requesterUser);
+  const rows = await peerInsightModel.getOrgWideRatingSummary();
+
+  const buckets = [5, 4, 3, 2, 1].map((rating) => ({ rating, count: 0, employees: [] }));
+  rows.forEach((r) => {
+    const bucketRating = Math.min(5, Math.max(1, Math.round(r.avg_rating)));
+    const bucket = buckets.find((b) => b.rating === bucketRating);
+    bucket.count += 1;
+    bucket.employees.push({ id: r.id, first_name: r.first_name, last_name: r.last_name, avg_rating: r.avg_rating });
+  });
+
+  return { totalEmployees: rows.length, buckets };
+}
+
+/**
+ * Org-wide rating distribution across every employee with submitted 360
+ * feedback (any project, combined). Buckets by rounded average rating
+ * (1-5) so HR can see, e.g., "6 employees averaging 4/5" and click
+ * through to see exactly who.
+ */
+async function getRatingDistribution(requesterUser) {
+  assertAdminTier(requesterUser);
+  const rows = await peerInsightModel.getOrgWideRatingSummary();
+
+  const buckets = [5, 4, 3, 2, 1].map((rating) => ({
+    rating,
+    employees: rows.filter((r) => Math.round(r.avg_rating) === rating),
+  }));
+
+  return {
+    totalEmployees: rows.length,
+    buckets: buckets.map((b) => ({ rating: b.rating, count: b.employees.length, employees: b.employees })),
+  };
+}
+
+/** HR nudges one specific pending reviewer - sends a notification + email, doesn't reveal WHO they're reviewing to anyone else. */
+async function remindReviewer(requesterUser, feedbackId) {
+  assertAdminTier(requesterUser);
+  const feedback = await peerInsightModel.findFeedbackById(feedbackId);
+  if (!feedback) throw AppError.notFound('Assignment not found');
+  if (feedback.status === 'submitted') {
+    throw AppError.badRequest('This reviewer has already submitted their feedback.');
+  }
+
+  const reviewer = await userModel.findById(feedback.reviewer_id);
+  if (!reviewer) throw AppError.notFound('Reviewer not found');
+
+  await notificationService.notifyUser({
+    userId: reviewer.id,
+    type: 'review_submitted',
+    title: 'Reminder: 360° Feedback pending',
+    message: 'You have an anonymous peer review still waiting on you in 360° Feedback. It only takes a couple of minutes.',
+    link: '/peer-insights',
+    email: reviewer.email,
+    recipientName: reviewer.first_name,
+  });
+
+  return { reminded: true, reviewerName: `${reviewer.first_name} ${reviewer.last_name}` };
+}
+
 // --- Reviewer-facing (anonymous submission) ---
 
 /** What am I (the logged-in user) assigned to review, in this round? */
@@ -435,6 +508,10 @@ module.exports = {
   closeRound,
   getCompletionSummary,
   listSubjectsInRound,
+  getRoundAssignmentDetail,
+  getRatingDistribution,
+  getRatingDistribution,
+  remindReviewer,
   listMyAssignments,
   listAllMyPendingAssignments,
   saveDraft,

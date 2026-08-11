@@ -1,6 +1,8 @@
 const asyncHandler = require('../utils/asyncHandler');
 const peerInsightService = require('../services/peerInsightService');
 const { FEEDBACK_CATEGORIES, LIKERT_SCALE } = require('../config/constants');
+const excelGenerator = require('../utils/excelGenerator');
+const pdfGenerator = require('../utils/pdfGenerator');
 
 // GET /api/peer-insights/feedback-form-schema — Item 2's question set,
 // single source of truth shared with the submission form.
@@ -63,6 +65,37 @@ const getCompletionSummary = asyncHandler(async (req, res) => {
 const listSubjectsInRound = asyncHandler(async (req, res) => {
   const subjects = await peerInsightService.listSubjectsInRound(req.user, req.params.roundId);
   res.json({ success: true, data: { subjects } });
+});
+
+const getRoundAssignmentDetail = asyncHandler(async (req, res) => {
+  const assignments = await peerInsightService.getRoundAssignmentDetail(req.user, req.params.roundId);
+  res.json({ success: true, data: { assignments } });
+});
+
+const remindReviewer = asyncHandler(async (req, res) => {
+  const result = await peerInsightService.remindReviewer(req.user, req.params.feedbackId);
+  res.json({ success: true, message: `Reminder sent to ${result.reviewerName}`, data: result });
+});
+
+const getRatingDistribution = asyncHandler(async (req, res) => {
+  const distribution = await peerInsightService.getRatingDistribution(req.user);
+  res.json({ success: true, data: { distribution } });
+});
+
+const exportRatingDistributionExcel = asyncHandler(async (req, res) => {
+  const distribution = await peerInsightService.getRatingDistribution(req.user);
+  const workbook = excelGenerator.buildRatingDistributionWorkbook(distribution);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="360-rating-distribution.xlsx"');
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
+const exportRatingDistributionPdf = asyncHandler(async (req, res) => {
+  const distribution = await peerInsightService.getRatingDistribution(req.user);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename="360-rating-distribution.pdf"');
+  pdfGenerator.generateRatingDistributionPdf(res, distribution);
 });
 
 // --- Reviewer-facing ---
@@ -177,6 +210,11 @@ module.exports = {
   closeRound,
   getCompletionSummary,
   listSubjectsInRound,
+  getRoundAssignmentDetail,
+  remindReviewer,
+  getRatingDistribution,
+  exportRatingDistributionExcel,
+  exportRatingDistributionPdf,
   listMyAssignments,
   listAllMyPendingAssignments,
   saveDraft,

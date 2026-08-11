@@ -34,6 +34,8 @@ router.get('/groups/:groupId/rounds', adminOnly, peerInsightController.listRound
 router.patch('/rounds/:roundId/close', adminOnly, peerInsightController.closeRound);
 router.get('/rounds/:roundId/completion-summary', adminOnly, peerInsightController.getCompletionSummary);
 router.get('/rounds/:roundId/subjects', adminOnly, peerInsightController.listSubjectsInRound);
+router.get('/rounds/:roundId/assignments-detail', adminOnly, peerInsightController.getRoundAssignmentDetail);
+router.patch('/feedback/:feedbackId/remind', adminOnly, peerInsightController.remindReviewer);
 
 // --- Reviewer-facing (any authenticated user, scoped to self in service) ---
 router.get('/my-assignments', peerInsightController.listAllMyPendingAssignments);
@@ -63,6 +65,9 @@ router.get('/my-overall-summary', peerInsightController.getMyReleasedOverallSumm
 
 // --- Cross-project (search an employee across every group they're in) ---
 router.get('/employees/search', adminOnly, peerInsightController.searchSubjects);
+router.get('/rating-distribution', adminOnly, peerInsightController.getRatingDistribution);
+router.get('/rating-distribution/export/excel', adminOnly, peerInsightController.exportRatingDistributionExcel);
+router.get('/rating-distribution/export/pdf', adminOnly, peerInsightController.exportRatingDistributionPdf);
 router.get('/employees/:subjectId/cross-project', adminOnly, peerInsightController.getCrossProjectBreakdown);
 router.get('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.getOverallSummary);
 router.patch('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.saveOverallSummary);

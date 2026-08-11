@@ -438,6 +438,29 @@ function buildBulkEmployeeTemplateWorkbook() {
   return workbook;
 }
 
+/** Org-wide 360 Feedback rating distribution - one row per employee, grouped visually by bucket. */
+function buildRatingDistributionWorkbook(distribution) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Performance Feedback System';
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet('Rating Distribution');
+  sheet.columns = [
+    { header: 'Rating Bucket', key: 'bucket', width: 16 },
+    { header: 'Employee', key: 'name', width: 28 },
+    { header: 'Average Rating', key: 'avgRating', width: 16 },
+  ];
+  styleHeaderRow(sheet.getRow(1));
+
+  distribution.buckets.forEach((b) => {
+    b.employees.forEach((e) => {
+      sheet.addRow({ bucket: `${b.rating}/5`, name: `${e.first_name} ${e.last_name}`, avgRating: e.avg_rating });
+    });
+  });
+
+  return workbook;
+}
+
 module.exports = {
   buildEmployeeWorkbook,
   buildDepartmentWorkbook,
@@ -448,4 +471,5 @@ module.exports = {
   buildCertificationsOverviewWorkbook,
   buildCertificationEmployeesWorkbook,
   buildBulkEmployeeTemplateWorkbook,
+  buildRatingDistributionWorkbook,
 };

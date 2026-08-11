@@ -1,5 +1,30 @@
 import { api } from './api';
 
+async function downloadBlob(url, filename) {
+  const response = await api.get(url, { responseType: 'blob' });
+  const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+export async function getRatingDistribution() {
+  const { data } = await api.get('/peer-insights/rating-distribution');
+  return data.data.distribution;
+}
+
+export async function exportRatingDistributionExcel() {
+  await downloadBlob('/peer-insights/rating-distribution/export/excel', '360-rating-distribution.xlsx');
+}
+
+export async function exportRatingDistributionPdf() {
+  await downloadBlob('/peer-insights/rating-distribution/export/pdf', '360-rating-distribution.pdf');
+}
+
 // Item 2: the actual 360° Feedback question set.
 export async function getFeedbackFormSchema() {
   const { data } = await api.get('/peer-insights/feedback-form-schema');
@@ -58,6 +83,16 @@ export async function getCompletionSummary(roundId) {
 export async function listSubjectsInRound(roundId) {
   const { data } = await api.get(`/peer-insights/rounds/${roundId}/subjects`);
   return data.data.subjects;
+}
+
+export async function getRoundAssignmentDetail(roundId) {
+  const { data } = await api.get(`/peer-insights/rounds/${roundId}/assignments-detail`);
+  return data.data.assignments;
+}
+
+export async function remindReviewer(feedbackId) {
+  const { data } = await api.patch(`/peer-insights/feedback/${feedbackId}/remind`);
+  return data;
 }
 
 // --- Reviewer-facing ---

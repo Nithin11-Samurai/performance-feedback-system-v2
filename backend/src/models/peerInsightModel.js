@@ -198,11 +198,41 @@ async function getCompletionSummary(roundId) {
   return result.rows;
 }
 
+/** Every employee (subject) with at least one submitted feedback, and their average overall rating across ALL their submitted feedback (any project). Powers the org-wide rating distribution dashboard. */
+async function getOrgWideRatingSummary() {
+  const result = await query(
+    `SELECT s.id, s.first_name, s.last_name, ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
+     FROM peer_insight_feedback f
+     JOIN users s ON s.id = f.subject_id
+     WHERE f.status = 'submitted' AND f.rating IS NOT NULL
+     GROUP BY s.id, s.first_name, s.last_name
+     ORDER BY avg_rating DESC`
+  );
+  return result.rows;
+}
+
+
 async function listSubjectsInRound(roundId) {
   const result = await query(
     `SELECT DISTINCT s.id, s.first_name, s.last_name
      FROM peer_insight_feedback f JOIN users s ON s.id = f.subject_id
      WHERE f.round_id = $1 ORDER BY s.first_name`,
+    [roundId]
+  );
+  return result.rows;
+}
+
+/** Every reviewer<->subject assignment in a round, with names and status - powers the submitted/pending hover detail and the remind action. */
+async function listAssignmentsWithStatusForRound(roundId) {
+  const result = await query(
+    `SELECT f.id, f.status, f.reviewer_id, f.subject_id,
+            rv.first_name AS reviewer_first_name, rv.last_name AS reviewer_last_name, rv.email AS reviewer_email,
+            sb.first_name AS subject_first_name, sb.last_name AS subject_last_name
+     FROM peer_insight_feedback f
+     JOIN users rv ON rv.id = f.reviewer_id
+     JOIN users sb ON sb.id = f.subject_id
+     WHERE f.round_id = $1
+     ORDER BY sb.first_name, rv.first_name`,
     [roundId]
   );
   return result.rows;
@@ -386,6 +416,8 @@ module.exports = {
   listRawFeedbackForSubject,
   getCompletionSummary,
   listSubjectsInRound,
+  listAssignmentsWithStatusForRound,
+  getOrgWideRatingSummary,
   upsertSummary,
   findSummary,
   releaseSummary,

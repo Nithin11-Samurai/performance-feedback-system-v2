@@ -257,4 +257,34 @@ function generateNotesPdf(res, report) {
   doc.end();
 }
 
-module.exports = { generateEmployeePdf, generateDepartmentPdf, generateCyclePdf, generateNotesPdf };
+function generateRatingDistributionPdf(res, distribution) {
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  doc.pipe(res);
+
+  doc.fillColor(COLORS.heading).fontSize(20).font('Helvetica-Bold').text('360° Feedback — Rating Distribution');
+  doc
+    .fontSize(11)
+    .fillColor(COLORS.muted)
+    .font('Helvetica')
+    .text(`${distribution.totalEmployees} employee(s) with submitted 360° Feedback, org-wide`);
+  doc.fontSize(9).text(`Generated ${formatDate(new Date())} · Confidential — HR/Admin only`);
+  doc.moveTo(50, doc.y + 8).lineTo(545, doc.y + 8).strokeColor(COLORS.rule).stroke();
+
+  distribution.buckets.forEach((b) => {
+    if (b.employees.length === 0) return;
+    drawSectionHeading(doc, `${b.rating}/5 — ${b.count} employee${b.count === 1 ? '' : 's'}`);
+    doc.font('Helvetica').fontSize(10).fillColor(COLORS.subheading);
+    b.employees.forEach((e) => doc.text(`${e.first_name} ${e.last_name} (avg ${e.avg_rating}/5)`));
+    doc.moveDown(0.5);
+  });
+
+  doc.end();
+}
+
+module.exports = {
+  generateEmployeePdf,
+  generateDepartmentPdf,
+  generateCyclePdf,
+  generateNotesPdf,
+  generateRatingDistributionPdf,
+};
