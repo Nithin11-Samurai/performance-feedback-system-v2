@@ -305,6 +305,16 @@ function EmployeeCrossProjectView({ employee, onBack }) {
   const [summaryText, setSummaryText] = useState('');
   const [saving, setSaving] = useState(false);
   const [releasing, setReleasing] = useState(false);
+  const [expandedProjects, setExpandedProjects] = useState(new Set());
+
+  function toggleProject(roundId) {
+    setExpandedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(roundId)) next.delete(roundId);
+      else next.add(roundId);
+      return next;
+    });
+  }
 
   useEffect(() => {
     peerInsightService.getFeedbackFormSchema().then(setSchema);
@@ -392,17 +402,41 @@ function EmployeeCrossProjectView({ employee, onBack }) {
         </p>
       ) : (
         <>
-          {data.projects.map((p) => (
-            <div key={p.roundId} className="card card-reviews">
-              <div className="mb-3 flex items-center gap-2">
-                <Briefcase size={15} className="text-primary-600" />
-                <h4 className="font-display text-sm font-semibold">{p.groupName}</h4>
-                <span className="text-xs text-ink-light/40 dark:text-ink-dark/40">({p.roundName})</span>
+          {data.projects.map((p) => {
+            const isExpanded = expandedProjects.has(p.roundId);
+            return (
+              <div key={p.roundId} className="card card-reviews">
+                <button
+                  onClick={() => toggleProject(p.roundId)}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Briefcase size={15} className="text-primary-600" />
+                    <h4 className="font-display text-sm font-semibold">{p.groupName}</h4>
+                    <span className="text-xs text-ink-light/40 dark:text-ink-dark/40">({p.roundName})</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {!isExpanded && (
+                      <span className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                        {p.breakdown.overallRatingAvg ? `avg ${p.breakdown.overallRatingAvg}/5 · ` : ''}
+                        {p.breakdown.reviewerCount} reviewer{p.breakdown.reviewerCount === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    <ChevronDown
+                      size={16}
+                      className={`flex-shrink-0 text-ink-light/40 transition-transform dark:text-ink-dark/40 ${isExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="mt-3">
+                    <CategoryBreakdownList breakdown={p.breakdown} />
+                    <PerReviewerDetail roundId={p.roundId} subjectId={employee.id} schema={schema} />
+                  </div>
+                )}
               </div>
-              <CategoryBreakdownList breakdown={p.breakdown} />
-              <PerReviewerDetail roundId={p.roundId} subjectId={employee.id} schema={schema} />
-            </div>
-          ))}
+            );
+          })}
 
           <div className="card card-reviews">
             <div className="mb-3 flex items-center justify-between">
