@@ -992,6 +992,7 @@ function ReviewersTab({ employee }) {
   const [releasing, setReleasing] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const [notifyingId, setNotifyingId] = useState(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState(null);
 
   useEffect(() => {
     reviewService.listCycles().then((list) => {
@@ -1041,6 +1042,8 @@ function ReviewersTab({ employee }) {
       setAssignments((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to remove assignment.', 'error');
+    } finally {
+      setConfirmRemoveId(null);
     }
   }
 
@@ -1148,7 +1151,11 @@ function ReviewersTab({ employee }) {
                   <span key={a.id} className="flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs dark:bg-primary-900/40">
                     {a.reviewer_first_name} {a.reviewer_last_name}
                     <span className="text-ink-light/40 dark:text-ink-dark/40">({reviewerTypeLabel(a.reviewer_type)})</span>
-                    <button onClick={() => handleRemoveAssignment(a.id)} className="text-ink-light/40 hover:text-danger">
+                    <button
+                      onClick={() => setConfirmRemoveId(a.id)}
+                      title="Revert this assignment"
+                      className="text-ink-light/40 hover:text-danger"
+                    >
                       ×
                     </button>
                   </span>
@@ -1156,6 +1163,16 @@ function ReviewersTab({ employee }) {
               </div>
             )}
           </div>
+
+          <ConfirmDialog
+            open={!!confirmRemoveId}
+            onClose={() => setConfirmRemoveId(null)}
+            onConfirm={() => handleRemoveAssignment(confirmRemoveId)}
+            title="Revert reviewer assignment"
+            message="Remove this reviewer from the cycle? If they've already started or submitted feedback, that stays intact — this only removes the assignment going forward. You can re-assign someone else immediately after."
+            confirmLabel="Revert"
+            danger
+          />
 
           <div className="card card-reviews">
             <h4 className="mb-3 font-display text-sm font-semibold">

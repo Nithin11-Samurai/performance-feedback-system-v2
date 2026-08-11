@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ChevronLeft, FileSpreadsheet, Award, Sparkles, ExternalLink } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, FileSpreadsheet, Award, Sparkles, ExternalLink, TrendingUp, Users2, AlertTriangle } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useToast } from '../context/ToastContext';
 import * as analyticsService from '../services/analyticsService';
@@ -8,6 +8,7 @@ import Badge from '../components/Badge';
 
 const PROFICIENCY_ORDER = ['beginner', 'intermediate', 'advanced', 'expert'];
 const PROFICIENCY_COLORS = { beginner: '#f6c0df', intermediate: '#ed7dbc', advanced: '#ea6bb3', expert: '#e02891' };
+const PROFICIENCY_LABELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', expert: 'Expert' };
 
 export default function SkillsCertsOverview() {
   usePageTitle('Skills and Certifications');
@@ -18,19 +19,33 @@ export default function SkillsCertsOverview() {
       <div className="flex gap-2">
         <button
           onClick={() => setTab('skills')}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium ${tab === 'skills' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-100'}`}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${tab === 'skills' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-100'}`}
         >
           Skills
         </button>
         <button
           onClick={() => setTab('certifications')}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium ${tab === 'certifications' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-100'}`}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${tab === 'certifications' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-100'}`}
         >
           Certifications
         </button>
       </div>
 
       {tab === 'skills' ? <SkillsOverviewPanel /> : <CertificationsOverviewPanel />}
+    </div>
+  );
+}
+
+function StatTile({ icon: Icon, label, value }) {
+  return (
+    <div className="card card-skills flex items-center gap-3 !p-4">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/60 dark:text-primary-100">
+        <Icon size={18} />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-lg font-semibold leading-5">{value}</p>
+        <p className="text-xs text-ink-light/55 dark:text-ink-dark/55">{label}</p>
+      </div>
     </div>
   );
 }
@@ -44,6 +59,13 @@ function SkillsOverviewPanel() {
   useEffect(() => {
     analyticsService.getSkillsOverview().then(setSkills);
   }, []);
+
+  const stats = useMemo(() => {
+    if (!skills || skills.length === 0) return null;
+    const totalHoldings = skills.reduce((sum, s) => sum + s.total, 0);
+    const topSkill = [...skills].sort((a, b) => b.total - a.total)[0];
+    return { uniqueSkills: skills.length, totalHoldings, topSkill };
+  }, [skills]);
 
   async function handleExportAll() {
     setExporting(true);
@@ -60,56 +82,98 @@ function SkillsOverviewPanel() {
     return <SkillEmployeesDrilldown skill={selected} onBack={() => setSelected(null)} />;
   }
 
-  return (
-    <div className="card card-skills">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-display text-base font-semibold">
-          <Sparkles size={16} /> Skills Overview
-        </h3>
-        <button className="btn-secondary text-xs" disabled={exporting} onClick={handleExportAll}>
-          <FileSpreadsheet size={14} /> Export all to Excel
-        </button>
-      </div>
+  const maxTotal = skills?.length ? Math.max(...skills.map((s) => s.total)) : 0;
 
-      {skills === null ? (
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      ) : skills.length === 0 ? (
-        <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">No skills recorded yet.</p>
-      ) : (
-        <div className="space-y-3">
-          {skills.map((s) => (
-            <button
-              key={`${s.category}-${s.skillName}`}
-              onClick={() => setSelected(s)}
-              className="flex w-full flex-col gap-2 rounded-md border border-primary-50 p-3 text-left hover:bg-primary-50/50 dark:border-primary-900/50 dark:hover:bg-primary-900/20"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {s.skillName} <span className="text-xs font-normal capitalize text-ink-light/40 dark:text-ink-dark/40">({s.category})</span>
-                </span>
-                <span className="data-mono text-sm font-semibold text-primary-700 dark:text-primary-300">{s.total}</span>
-              </div>
-              <div className="flex h-2 overflow-hidden rounded-full bg-primary-50 dark:bg-primary-900/40">
-                {PROFICIENCY_ORDER.map((p) => {
-                  const width = s.total > 0 ? (s.byProficiency[p] / s.total) * 100 : 0;
-                  return width > 0 ? <div key={p} style={{ width: `${width}%`, backgroundColor: PROFICIENCY_COLORS[p] }} /> : null;
-                })}
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-ink-light/50 dark:text-ink-dark/50">
-                {PROFICIENCY_ORDER.filter((p) => s.byProficiency[p] > 0).map((p) => (
-                  <span key={p}>
-                    {p}: {s.byProficiency[p]}
-                  </span>
-                ))}
-              </div>
-            </button>
-          ))}
+  return (
+    <div className="space-y-4">
+      {stats && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatTile icon={Sparkles} label="Distinct skills tracked" value={stats.uniqueSkills} />
+          <StatTile icon={Users2} label="Total skill entries" value={stats.totalHoldings} />
+          <StatTile icon={TrendingUp} label="Most common skill" value={stats.topSkill.skillName} />
         </div>
       )}
+
+      <div className="card card-skills">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-display text-base font-semibold">
+            <Sparkles size={16} /> Skills Overview
+          </h3>
+          <button className="btn-secondary text-xs" disabled={exporting} onClick={handleExportAll}>
+            <FileSpreadsheet size={14} /> Export all to Excel
+          </button>
+        </div>
+
+        {skills === null ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </div>
+        ) : skills.length === 0 ? (
+          <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">No skills recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {[...skills].sort((a, b) => b.total - a.total).map((s, i) => (
+              <button
+                key={`${s.category}-${s.skillName}`}
+                onClick={() => setSelected(s)}
+                className="group flex w-full flex-col gap-3 rounded-xl border border-primary-50 p-4 text-left transition-all hover:border-primary-200 hover:bg-primary-50/40 hover:shadow-sm dark:border-primary-900/50 dark:hover:bg-primary-900/20"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-display text-base font-semibold">{s.skillName}</span>
+                    <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium capitalize text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
+                      {s.category}
+                    </span>
+                    {i === 0 && (
+                      <span className="flex items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-xs font-medium text-accent-800 dark:bg-accent-900/40 dark:text-accent-100">
+                        <TrendingUp size={11} /> Most common
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="data-mono text-xl font-semibold leading-5 text-primary-700 dark:text-primary-300">
+                      {s.total}
+                    </p>
+                    <p className="text-[11px] text-ink-light/45 dark:text-ink-dark/45">employee{s.total === 1 ? '' : 's'}</p>
+                  </div>
+                </div>
+
+                <div className="flex h-2.5 overflow-hidden rounded-full bg-primary-50 dark:bg-primary-900/40">
+                  {PROFICIENCY_ORDER.map((p) => {
+                    const width = s.total > 0 ? (s.byProficiency[p] / s.total) * 100 : 0;
+                    return width > 0 ? (
+                      <div
+                        key={p}
+                        style={{ width: `${width}%`, backgroundColor: PROFICIENCY_COLORS[p] }}
+                        className="transition-all"
+                      />
+                    ) : null;
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {PROFICIENCY_ORDER.filter((p) => s.byProficiency[p] > 0).map((p) => (
+                    <span key={p} className="flex items-center gap-1.5 text-xs text-ink-light/60 dark:text-ink-dark/60">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PROFICIENCY_COLORS[p] }} />
+                      {PROFICIENCY_LABELS[p]}: <span className="font-medium">{s.byProficiency[p]}</span>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Bar chart, relative to the most-held skill, gives visual sense of scale across the whole list */}
+                <div className="h-1 overflow-hidden rounded-full bg-primary-50/60 dark:bg-primary-900/30">
+                  <div
+                    className="h-full rounded-full bg-primary-200 transition-all dark:bg-primary-800"
+                    style={{ width: `${maxTotal > 0 ? (s.total / maxTotal) * 100 : 0}%` }}
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -189,6 +253,13 @@ function CertificationsOverviewPanel() {
     analyticsService.getCertificationsOverview().then(setCertifications);
   }, []);
 
+  const stats = useMemo(() => {
+    if (!certifications || certifications.length === 0) return null;
+    const totalHolders = certifications.reduce((sum, c) => sum + c.holder_count, 0);
+    const totalExpired = certifications.reduce((sum, c) => sum + (c.expired_count || 0), 0);
+    return { uniqueCerts: certifications.length, totalHolders, totalExpired };
+  }, [certifications]);
+
   async function handleExportAll() {
     setExporting(true);
     try {
@@ -204,43 +275,64 @@ function CertificationsOverviewPanel() {
     return <CertificationEmployeesDrilldown certification={selected} onBack={() => setSelected(null)} />;
   }
 
-  return (
-    <div className="card card-certs">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-display text-base font-semibold">
-          <Award size={16} /> Certifications Overview
-        </h3>
-        <button className="btn-secondary text-xs" disabled={exporting} onClick={handleExportAll}>
-          <FileSpreadsheet size={14} /> Export all to Excel
-        </button>
-      </div>
+  const maxHolders = certifications?.length ? Math.max(...certifications.map((c) => c.holder_count)) : 0;
 
-      {certifications === null ? (
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
+  return (
+    <div className="space-y-4">
+      {stats && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <StatTile icon={Award} label="Distinct certifications" value={stats.uniqueCerts} />
+          <StatTile icon={Users2} label="Total certifications held" value={stats.totalHolders} />
+          <StatTile icon={AlertTriangle} label="Expired certifications" value={stats.totalExpired} />
         </div>
-      ) : certifications.length === 0 ? (
-        <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">No certifications recorded yet.</p>
-      ) : (
-        <ul className="space-y-1">
-          {certifications.map((c) => (
-            <li key={c.name}>
-              <button
-                onClick={() => setSelected(c)}
-                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-primary-50 dark:hover:bg-primary-900/40"
-              >
-                <span>{c.name}</span>
-                <span className="flex items-center gap-2">
-                  {c.expired_count > 0 && <Badge tone="danger">{c.expired_count} expired</Badge>}
-                  <span className="data-mono font-semibold text-primary-700 dark:text-primary-300">{c.holder_count}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
       )}
+
+      <div className="card card-certs">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-display text-base font-semibold">
+            <Award size={16} /> Certifications Overview
+          </h3>
+          <button className="btn-secondary text-xs" disabled={exporting} onClick={handleExportAll}>
+            <FileSpreadsheet size={14} /> Export all to Excel
+          </button>
+        </div>
+
+        {certifications === null ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : certifications.length === 0 ? (
+          <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">No certifications recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {[...certifications].sort((a, b) => b.holder_count - a.holder_count).map((c) => (
+              <button
+                key={c.name}
+                onClick={() => setSelected(c)}
+                className="flex w-full flex-col gap-2.5 rounded-xl border border-primary-50 p-4 text-left transition-all hover:border-primary-200 hover:bg-primary-50/40 hover:shadow-sm dark:border-primary-900/50 dark:hover:bg-primary-900/20"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-display text-base font-semibold">{c.name}</span>
+                  <div className="flex items-center gap-2">
+                    {c.expired_count > 0 && <Badge tone="danger">{c.expired_count} expired</Badge>}
+                    <span className="data-mono text-lg font-semibold text-primary-700 dark:text-primary-300">
+                      {c.holder_count}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-primary-50/60 dark:bg-primary-900/30">
+                  <div
+                    className="h-full rounded-full bg-primary-500 transition-all"
+                    style={{ width: `${maxHolders > 0 ? (c.holder_count / maxHolders) * 100 : 0}%` }}
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Play, Lock, Trash2, AlertCircle, Users2, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Plus, Play, Lock, Trash2, AlertCircle, Users2, UserCog, FileDown, FileSpreadsheet } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useToast } from '../context/ToastContext';
 import * as reviewService from '../services/reviewService';
@@ -219,6 +219,18 @@ export default function AdminCycles() {
           </div>
 
           <CompletionSummary cycle={selected} />
+          <div className="card card-reviews flex items-start gap-3 bg-primary-50/40 dark:bg-primary-900/20">
+            <UserCog size={18} className="mt-0.5 flex-shrink-0 text-primary-600" />
+            <p className="text-sm text-ink-light/70 dark:text-ink-dark/70">
+              Need to assign a specific reviewer for this cycle — Team Lead, MD, Skip-Level Manager, HR, Project
+              Lead, or Mentor? That's done per employee: open their profile under{' '}
+              <Link to="/admin/employees" className="font-medium text-primary-700 underline dark:text-primary-300">
+                Employees
+              </Link>{' '}
+              and use the <span className="font-medium">Reviewers</span> tab. Assignments can be reverted from
+              there too if the wrong person gets added.
+            </p>
+          </div>
           <div className="card card-reviews flex items-start gap-3 bg-primary-50/40 dark:bg-primary-900/20">
             <Users2 size={18} className="mt-0.5 flex-shrink-0 text-primary-600" />
             <p className="text-sm text-ink-light/70 dark:text-ink-dark/70">
