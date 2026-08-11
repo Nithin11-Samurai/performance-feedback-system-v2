@@ -388,17 +388,13 @@ function HrPeerInsightsView() {
  * per-project too, without duplicating the fetch/render logic.
  */
 function PerReviewerDetail({ roundId, subjectId, schema }) {
-  const [loaded, setLoaded] = useState(false);
   const [rawFeedback, setRawFeedback] = useState(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
 
-  async function ensureLoaded() {
-    if (!loaded) {
-      const feedback = await peerInsightService.getRawFeedback(roundId, subjectId);
-      setRawFeedback(feedback);
-      setLoaded(true);
-    }
-  }
+  useEffect(() => {
+    peerInsightService.getRawFeedback(roundId, subjectId).then(setRawFeedback);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundId, subjectId]);
 
   function toggleReviewer(id) {
     setExpandedIds((prev) => {
@@ -409,17 +405,17 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
     });
   }
 
+  if (rawFeedback === null) {
+    return <Skeleton className="h-16 w-full" />;
+  }
+
+  if (rawFeedback.length === 0) {
+    return <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No submitted feedback yet.</p>;
+  }
+
   return (
-    <>
-      <button
-        onClick={ensureLoaded}
-        className="mt-4 text-xs text-primary-600 hover:underline dark:text-primary-300"
-      >
-        {loaded ? 'Individual reviewer feedback' : 'Show individual reviewer feedback'}
-      </button>
-      {loaded && rawFeedback && (
-        <div className="mt-3 space-y-2">
-          {rawFeedback.map((f) => {
+    <div className="space-y-2">
+      {rawFeedback.map((f) => {
             const isOpen = expandedIds.has(f.id);
             const reviewerSummary =
               schema && f.category_scores
@@ -476,10 +472,8 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                 )}
               </div>
             );
-          })}
-        </div>
-      )}
-    </>
+      })}
+    </div>
   );
 }
 
