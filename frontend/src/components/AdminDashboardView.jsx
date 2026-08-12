@@ -67,11 +67,11 @@ export default function AdminDashboardView() {
   const completionPct = totalReviews ? Math.round((reviewCompletion.submitted / totalReviews) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* --- Filter bar --- */}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="flex items-center gap-1.5 text-sm text-ink-light/50 dark:text-ink-dark/50">
-          <Filter size={14} /> Filter:
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-primary-900/50 dark:bg-surface-dark">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-ink-dark/60">
+          <Filter size={14} /> Filter
         </span>
         <select className="input w-auto text-sm" value={department} onChange={(e) => setDepartment(e.target.value)}>
           <option value="">All departments</option>
@@ -91,7 +91,7 @@ export default function AdminDashboardView() {
         </select>
         {(department || cycleId) && (
           <button
-            className="text-xs text-primary-600 hover:underline dark:text-primary-300"
+            className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
             onClick={() => {
               setDepartment('');
               setCycleId('');
@@ -124,18 +124,18 @@ export default function AdminDashboardView() {
 
       {/* --- Chart + widgets --- */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="card card-reviews">
-          <h3 className="mb-4 font-display text-base font-semibold">Review completion</h3>
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-primary-900/50 dark:bg-surface-dark">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-ink-dark">Review completion</h3>
           <div className="flex justify-center py-2">
             <RadialProgress
               percent={completionPct}
-              color="#ea6bb3"
+              color="#E83E93"
               label="Completed"
               sublabel={`${reviewCompletion.submitted} of ${totalReviews || 0}`}
             />
           </div>
           {summary?.targetCycle && (
-            <p className="mt-2 text-center text-xs text-ink-light/50 dark:text-ink-dark/50">{summary.targetCycle.name}</p>
+            <p className="mt-2 text-center text-xs text-gray-400 dark:text-ink-dark/40">{summary.targetCycle.name}</p>
           )}
         </div>
 

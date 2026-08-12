@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, User as UserIcon, Menu } from 'lucide-react';
+import { LogOut, User as UserIcon, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import NotificationBell from './NotificationBell';
@@ -51,7 +51,8 @@ export default function Topbar({ title, onOpenMenu }) {
         <div className="relative ml-1 sm:ml-2" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-primary-50 dark:hover:bg-primary-900/40"
+            aria-label="Account menu"
+            className="flex items-center rounded-full p-0.5 hover:bg-primary-50 dark:hover:bg-primary-900/40"
           >
             {user?.avatar_url && !topbarAvatarFailed ? (
               <img
@@ -70,16 +71,15 @@ export default function Topbar({ title, onOpenMenu }) {
                 {user?.last_name?.[0]}
               </div>
             )}
-            <div className="hidden text-left sm:block">
-              <p className="text-sm font-medium leading-tight">
-                {user?.first_name} {user?.last_name}
-              </p>
-            </div>
-            <ChevronDown size={16} className="hidden text-ink-light/40 dark:text-ink-dark/40 sm:block" />
           </button>
 
           {menuOpen && (
             <div className="absolute right-0 z-20 mt-2 w-48 rounded-card border border-primary-100 bg-surface-light py-1 shadow-card dark:border-primary-900 dark:bg-surface-dark">
+              <div className="border-b border-primary-100 px-4 py-2 dark:border-primary-900">
+                <p className="truncate text-sm font-medium">
+                  {user?.first_name} {user?.last_name}
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setMenuOpen(false);

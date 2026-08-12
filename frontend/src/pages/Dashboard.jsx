@@ -4,17 +4,28 @@ import { ROLES, isAdminTier } from '../utils/roles';
 import AdminDashboardView from '../components/AdminDashboardView';
 import ManagerDashboardView from '../components/ManagerDashboardView';
 import EmployeeDashboardView from '../components/EmployeeDashboardView';
+import WelcomeCard from '../components/WelcomeCard';
 
 /**
  * Thin role dispatcher. Each role's dashboard is now a self-contained,
  * self-fetching component (AdminDashboardView / ManagerDashboardView /
- * EmployeeDashboardView) — this page just picks the right one.
+ * EmployeeDashboardView) — this page just picks the right one, with a
+ * shared welcome greeting above all three.
  */
 export default function Dashboard() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
 
-  if (isAdminTier(user.role)) return <AdminDashboardView />;
-  if (user.role === ROLES.MANAGER) return <ManagerDashboardView />;
-  return <EmployeeDashboardView />;
+  return (
+    <div className="space-y-4">
+      <WelcomeCard firstName={user.first_name} />
+      {isAdminTier(user.role) ? (
+        <AdminDashboardView />
+      ) : user.role === ROLES.MANAGER ? (
+        <ManagerDashboardView />
+      ) : (
+        <EmployeeDashboardView />
+      )}
+    </div>
+  );
 }
