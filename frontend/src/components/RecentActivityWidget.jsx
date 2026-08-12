@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import Skeleton from './Skeleton';
 
@@ -15,9 +16,14 @@ function describeAction(action) {
 export default function RecentActivityWidget({ activity, loading }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-primary-900/50 dark:bg-surface-dark">
-      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-ink-dark">
-        <Activity size={15} className="text-primary-500" /> Recent activity
-      </h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-ink-dark">
+          <Activity size={15} className="text-primary-500" /> Recent activity
+        </h3>
+        <Link to="/activity-log" className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300">
+          View all
+        </Link>
+      </div>
       {loading ? (
         <div className="space-y-4">
           {[...Array(4)].map((_, i) => (

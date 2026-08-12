@@ -90,29 +90,21 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         onClick={onItemClick}
         title={showLabels ? undefined : label}
         className={({ isActive }) =>
-          `relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 ${
+          `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 ${
             !showLabels ? 'justify-center' : ''
           } ${
             isActive
-              ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200'
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200'
               : 'text-gray-500 hover:translate-x-0.5 hover:bg-primary-50/60 hover:text-primary-700 dark:text-ink-dark/65 dark:hover:bg-primary-900/30 dark:hover:text-primary-200'
           }`
         }
       >
-        {({ isActive }) =>
-          isActive ? (
-            <>
-              <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary-600" />
-              <Icon size={17} className="flex-shrink-0 text-primary-600" />
-              {showLabels && label}
-            </>
-          ) : (
-            <>
-              <Icon size={17} className="flex-shrink-0" />
-              {showLabels && label}
-            </>
-          )
-        }
+        {({ isActive }) => (
+          <>
+            <Icon size={17} className={`flex-shrink-0 ${isActive ? 'text-primary-600' : ''}`} />
+            {showLabels && label}
+          </>
+        )}
       </NavLink>
     ));
   }

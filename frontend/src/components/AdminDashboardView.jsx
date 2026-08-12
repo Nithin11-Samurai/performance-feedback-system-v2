@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Users, Hourglass, CheckCircle2, Star, AlertCircle, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Users, Hourglass, CheckCircle2, Star, AlertCircle, Filter, FileDown } from 'lucide-react';
 import * as dashboardService from '../services/dashboardService';
 import * as catalogService from '../services/catalogService';
 import * as reviewService from '../services/reviewService';
+import * as exportService from '../services/exportService';
 import StatCard from './StatCard';
 import RadialProgress from './RadialProgress';
 import RecentActivityWidget from './RecentActivityWidget';
@@ -50,6 +52,16 @@ export default function AdminDashboardView() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [department, cycleId]);
+
+  async function handleExportReport() {
+    const targetCycle = cycles.find((c) => c.id === cycleId) || cycles[0];
+    if (!targetCycle) return;
+    try {
+      await exportService.exportCycleExcel(targetCycle.id, targetCycle.name);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Export failed.');
+    }
+  }
 
   if (error) {
     return (
@@ -100,6 +112,9 @@ export default function AdminDashboardView() {
             Clear filters
           </button>
         )}
+        <button onClick={handleExportReport} disabled={cycles.length === 0} className="btn-secondary ml-auto text-xs disabled:opacity-40">
+          <FileDown size={14} /> Export Report
+        </button>
       </div>
 
       {/* --- KPI row --- */}
@@ -118,7 +133,7 @@ export default function AdminDashboardView() {
           icon={Star}
           label="Average Rating"
           value={kpis?.averageRating != null ? `${kpis.averageRating}/5` : 'N/A'}
-          variant="primary"
+          variant="rating"
         />
       </div>
 
@@ -137,10 +152,16 @@ export default function AdminDashboardView() {
           {summary?.targetCycle && (
             <p className="mt-2 text-center text-xs text-gray-400 dark:text-ink-dark/40">{summary.targetCycle.name}</p>
           )}
+          <Link
+            to="/admin/cycles"
+            className="mt-4 block rounded-full border border-primary-200 py-2 text-center text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50 dark:border-primary-800 dark:text-primary-300 dark:hover:bg-primary-900/40"
+          >
+            View details
+          </Link>
         </div>
 
         <RecentActivityWidget activity={widgets?.recentActivity || []} loading={loading} />
-        <UpcomingReviewsWidget cycles={widgets?.upcomingReviews || []} loading={loading} />
+        <UpcomingReviewsWidget cycles={widgets?.upcomingReviews || []} loading={loading} viewAllLink="/admin/cycles" />
       </div>
     </div>
   );

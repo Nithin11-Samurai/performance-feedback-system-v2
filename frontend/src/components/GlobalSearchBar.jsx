@@ -60,8 +60,8 @@ export default function GlobalSearchBar() {
       <div className="relative">
         <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-light/40 dark:text-ink-dark/40" />
         <input
-          className="input w-56 pl-9 pr-8 text-sm"
-          placeholder="Search employees…"
+          className="input w-56 pl-9 pr-14 text-sm sm:w-72 lg:w-96"
+          placeholder="Search employees, skills…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -69,6 +69,11 @@ export default function GlobalSearchBar() {
           }}
           onFocus={() => setOpen(true)}
         />
+        {!query && (
+          <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-400 dark:border-primary-800 dark:bg-primary-900/40 dark:text-ink-dark/40">
+            ⌘K
+          </kbd>
+        )}
         {query && (
           <button
             className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-light/40 hover:text-ink-light/70 dark:text-ink-dark/40"

@@ -73,7 +73,7 @@ export default function ManagerDashboardView() {
           icon={Star}
           label="Average Team Rating"
           value={kpis?.averageRating != null ? `${kpis.averageRating}/5` : 'N/A'}
-          variant="primary"
+          variant="rating"
         />
       </div>
 
