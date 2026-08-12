@@ -36,23 +36,25 @@
 }
 
 @layer components {
-  /* Module-coded card: a thin left accent border encodes which part of the
-     system the card belongs to (skills / certs / notes / reviews). */
+  /* Elevated, floating card - shadow does the work instead of a flat
+     colored strip. The thin left accent still encodes which module the
+     card belongs to (skills / certs / notes / reviews), just softer and
+     paired with a genuine hover lift so cards feel tactile, not static. */
   .card {
-    @apply bg-surface-light dark:bg-surface-dark rounded-card shadow-card border-l-4 p-5 overflow-hidden
-           transition-shadow duration-200 hover:shadow-card-hover;
+    @apply bg-surface-light dark:bg-surface-dark rounded-card shadow-card border-l-[3px] p-5 overflow-hidden
+           transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-hover;
   }
-  .card-skills { @apply border-l-primary-500; }
-  .card-certs { @apply border-l-accent-500; }
-  .card-notes { @apply border-l-slate-400; }
-  .card-reviews { @apply border-l-primary-600; }
+  .card-skills { @apply border-l-primary-400; }
+  .card-certs { @apply border-l-accent-400; }
+  .card-notes { @apply border-l-slate-300; }
+  .card-reviews { @apply border-l-primary-500; }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium
-           transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold
+           transition-all duration-150 ease-out active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
   }
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700;
+    @apply btn bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-md hover:-translate-y-px;
   }
   .btn-secondary {
     @apply btn bg-primary-50 text-primary-700 hover:bg-primary-100 dark:bg-primary-900/40 dark:text-primary-100 dark:hover:bg-primary-900/70;
@@ -63,7 +65,8 @@
 
   .input {
     @apply w-full rounded-xl border border-primary-200 dark:border-primary-800 bg-surface-light dark:bg-surface-dark
-           px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors;
+           px-3 py-2 text-sm transition-all duration-150 outline-none
+           focus:border-primary-400 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900/50;
   }
 
   .label {
@@ -78,6 +81,18 @@
   .skeleton {
     @apply animate-pulse rounded-md bg-primary-100 dark:bg-primary-900/40;
   }
+
+  /* Subtle entrance for page content - a small fade + rise reads as
+     "premium load" without being showy. Respects prefers-reduced-motion
+     via the base-layer override above. */
+  .animate-fade-in-up {
+    animation: fadeInUp 0.35s ease-out both;
+  }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes employeeFade {
 

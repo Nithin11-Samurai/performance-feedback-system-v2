@@ -25,11 +25,9 @@ export default function StatCard({ icon: Icon, label, value, sublabel, variant =
   }
 
   return (
-    <div
-      className={`card ${VARIANT_CLASS[variant] || VARIANT_CLASS.primary} flex items-center gap-4 transition-transform duration-200 hover:-translate-y-0.5`}
-    >
+    <div className={`card ${VARIANT_CLASS[variant] || VARIANT_CLASS.primary} animate-fade-in-up flex items-center gap-4`}>
       {Icon && (
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
           <Icon size={20} />
         </div>
       )}

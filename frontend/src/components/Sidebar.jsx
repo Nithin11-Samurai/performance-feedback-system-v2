@@ -90,16 +90,16 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         onClick={onItemClick}
         title={showLabels ? undefined : label}
         className={({ isActive }) =>
-          `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 ${
             !showLabels ? 'justify-center' : ''
           } ${
             isActive
-              ? 'bg-primary-700 text-white'
-              : 'text-ink-light/70 hover:bg-primary-50 dark:text-ink-dark/70 dark:hover:bg-primary-900/40'
+              ? 'bg-primary-600 text-white shadow-sm shadow-primary-600/20'
+              : 'text-ink-light/65 hover:translate-x-0.5 hover:bg-primary-50 hover:text-primary-700 dark:text-ink-dark/65 dark:hover:bg-primary-900/40 dark:hover:text-primary-200'
           }`
         }
       >
-        <Icon size={17} />
+        <Icon size={17} className="flex-shrink-0" />
         {showLabels && label}
       </NavLink>
     ));
@@ -113,11 +113,11 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
           collapsed ? 'w-16' : 'w-60'
         }`}
       >
-        <div className="flex h-16 items-center gap-2 border-b border-primary-100 px-5 dark:border-primary-900">
-          {!collapsed && <img src={logo} alt="PinkSamurais" className="h-8 w-auto object-contain" />}
+        <div className="flex h-[72px] items-center gap-2 border-b border-primary-100/70 px-5 dark:border-primary-900/70">
+          {!collapsed && <img src={logo} alt="PinkSamurais" className="h-9 w-auto object-contain" />}
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">{navLinks(undefined, !collapsed)}</nav>
+        <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5">{navLinks(undefined, !collapsed)}</nav>
 
         <button
           onClick={toggleCollapsed}
@@ -138,7 +138,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
           <aside className="relative flex h-full w-64 flex-col bg-surface-light shadow-card dark:bg-surface-dark">
-            <div className="flex h-16 items-center justify-between gap-2 border-b border-primary-100 px-5 dark:border-primary-900">
+            <div className="flex h-[72px] items-center justify-between gap-2 border-b border-primary-100/70 px-5 dark:border-primary-900/70">
               <img src={logo} alt="PinkSamurais" className="h-8 w-auto object-contain" />
               <button
                 onClick={onClose}
@@ -148,7 +148,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
                 <X size={18} />
               </button>
             </div>
-            <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">{navLinks(onClose, true)}</nav>
+            <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5">{navLinks(onClose, true)}</nav>
           </aside>
         </div>
       )}

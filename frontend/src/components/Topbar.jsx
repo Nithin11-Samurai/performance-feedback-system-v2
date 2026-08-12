@@ -31,7 +31,7 @@ export default function Topbar({ title, onOpenMenu }) {
   }
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-primary-100 bg-surface-light px-4 dark:border-primary-900 dark:bg-surface-dark sm:px-6">
+    <header className="flex h-[72px] items-center justify-between border-b border-primary-100/70 bg-surface-light px-4 dark:border-primary-900/70 dark:bg-surface-dark sm:px-6">
       <div className="flex items-center gap-3">
         <button
           onClick={onOpenMenu}
