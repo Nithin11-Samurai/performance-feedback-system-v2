@@ -18,6 +18,17 @@ const routes = require('./routes');
 
 const app = express();
 
+// Render (and most PaaS hosts) sit behind their own reverse proxy, which
+// sets X-Forwarded-For. Without telling Express to trust exactly one hop,
+// express-rate-limit can't safely derive the real client IP from that
+// header and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR as a safety check
+// against IP spoofing. Only enabled in production — locally there's no
+// proxy in front, so trusting a forwarded-for header there would be the
+// actual spoofing risk this check exists to catch.
+if (config.env === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // ---------------------------------------------------------------------------
 // Security & core middleware
 // ---------------------------------------------------------------------------
