@@ -54,18 +54,16 @@ function HrPeerInsightsView() {
   const [searchResults, setSearchResults] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [groupFilter, setGroupFilter] = useState('');
-  const [dashboardOpen, setDashboardOpen] = useState(false);
   const [distribution, setDistribution] = useState(null);
   const [expandedBucket, setExpandedBucket] = useState(null);
   const [bucketFilter, setBucketFilter] = useState('');
-  const [groupsOpen, setGroupsOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
-  async function toggleDashboard() {
-    if (!dashboardOpen && distribution === null) {
+  useEffect(() => {
+    if (activeTab === 'overview' && distribution === null) {
       peerInsightService.getRatingDistribution().then(setDistribution);
     }
-    setDashboardOpen((v) => !v);
-  }
+  }, [activeTab, distribution]);
 
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
@@ -122,25 +120,47 @@ function HrPeerInsightsView() {
 
   return (
     <div className="space-y-4">
-      <div className="card card-reviews flex items-start gap-3">
-        <ShieldCheck size={18} className="mt-0.5 flex-shrink-0 text-primary-600" />
-        <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">
-          Anonymous 360-degree feedback, organized by project rather than the whole org. Peers never learn
-          who reviewed them, only HR sees raw feedback, and only a curated summary you write is ever shared
-          with the employee, once you explicitly release it.
-        </p>
+      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-5 dark:bg-primary-900/20">
+        <div className="relative z-10 max-w-lg">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-ink-dark">
+            <Users2 size={20} className="text-primary-600" /> Welcome to 360° Feedback!
+          </h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-ink-dark/70">
+            Empower continuous growth with anonymous, constructive feedback. Track participation, review
+            insights, and drive meaningful improvement across teams and projects.
+          </p>
+        </div>
+        <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-primary-100/60" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-primary-200/40" aria-hidden="true" />
       </div>
 
-      <div className="card card-reviews">
-        <button onClick={toggleDashboard} className="flex w-full items-center justify-between gap-2 text-left">
-          <h3 className="flex items-center gap-2 font-display text-base font-semibold">
-            <BarChart3 size={17} className="text-primary-600" /> 360° Feedback Rating Overview
-          </h3>
-          <ChevronDown size={16} className={`text-ink-light/40 transition-transform ${dashboardOpen ? 'rotate-180' : ''}`} />
-        </button>
+      <div className="flex gap-1 border-b border-primary-100 dark:border-primary-900/70">
+        {[
+          { key: 'overview', label: '360° Feedback Overview', icon: BarChart3 },
+          { key: 'employee', label: 'Employee Feedback', icon: Users2 },
+          { key: 'groups', label: 'Project Groups', icon: Briefcase },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === tab.key
+                ? 'border-primary-600 text-primary-700 dark:text-primary-300'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-ink-dark/60'
+            }`}
+          >
+            <tab.icon size={15} /> {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {dashboardOpen && (
-          <div className="mt-4">
+      {activeTab === 'overview' && (
+      <div className="card card-reviews">
+        <h3 className="mb-1 flex items-center gap-2 font-display text-base font-semibold">
+          <BarChart3 size={17} className="text-primary-600" /> 360° Feedback Rating Overview
+        </h3>
+
+        <div className="mt-4">
             {distribution === null ? (
               <Skeleton className="h-32 w-full" />
             ) : (
@@ -242,7 +262,17 @@ function HrPeerInsightsView() {
               </>
             )}
           </div>
-        )}
+      </div>
+      )}
+
+      {activeTab === 'employee' && (
+      <>
+      <div className="card card-reviews flex items-start gap-3">
+        <ShieldCheck size={18} className="mt-0.5 flex-shrink-0 text-primary-600" />
+        <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">
+          Anonymous 360-degree feedback. Peers never learn who reviewed them, only HR sees raw feedback, and
+          only a curated summary you write is ever shared with the employee, once you explicitly release it.
+        </p>
       </div>
 
       <div className="relative">
@@ -288,73 +318,72 @@ function HrPeerInsightsView() {
           </div>
         )}
       </div>
+      </>
+      )}
 
+      {activeTab === 'groups' && (
+      <>
       <div className="flex items-center justify-between">
-        <button onClick={() => setGroupsOpen((v) => !v)} className="flex items-center gap-2">
-          <h3 className="font-display text-lg font-semibold">Project Groups</h3>
-          <ChevronDown size={16} className={`text-ink-light/40 transition-transform ${groupsOpen ? 'rotate-180' : ''}`} />
-        </button>
+        <h3 className="font-display text-lg font-semibold">Project Groups</h3>
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> New project group
         </button>
       </div>
 
-      {groupsOpen && (
-        <>
-          {groups !== null && groups.length > 6 && (
-            <input
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value)}
-              placeholder="Filter project groups by name…"
-              className="input"
-            />
-          )}
+      {groups !== null && groups.length > 6 && (
+        <input
+          value={groupFilter}
+          onChange={(e) => setGroupFilter(e.target.value)}
+          placeholder="Filter project groups by name…"
+          className="input"
+        />
+      )}
 
-          {groups === null ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-28 w-full" />
+      {groups === null ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="card card-reviews flex flex-col items-center gap-2 py-16 text-center">
+          <Users2 size={28} className="text-primary-300" />
+          <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
+            No project groups yet. Create one to start running 360° Feedback.
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[560px] overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {groups
+              .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
+              .map((g) => (
+                <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
+                  <div className="mb-2 flex items-start justify-between">
+                    <h4 className="font-display text-base font-semibold">{g.name}</h4>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteGroup(g);
+                      }}
+                      className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
+                  <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
+                </div>
               ))}
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="card card-reviews flex flex-col items-center gap-2 py-16 text-center">
-              <Users2 size={28} className="text-primary-300" />
-              <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
-                No project groups yet. Create one to start running 360° Feedback.
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-[560px] overflow-y-auto pr-1">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {groups
-                  .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
-                  .map((g) => (
-                    <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
-                      <div className="mb-2 flex items-start justify-between">
-                        <h4 className="font-display text-base font-semibold">{g.name}</h4>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDeleteGroup(g);
-                          }}
-                          className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
-                      <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
-                    </div>
-                  ))}
-              </div>
-              {groups.filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase())).length === 0 && (
-                <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-                  No project groups match "{groupFilter}".
-                </p>
-              )}
-            </div>
+          </div>
+          {groups.filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase())).length === 0 && (
+            <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              No project groups match "{groupFilter}".
+            </p>
           )}
-        </>
+        </div>
+      )}
+      </>
       )}
 
       <CreateGroupModal
