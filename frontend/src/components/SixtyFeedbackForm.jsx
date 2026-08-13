@@ -19,6 +19,16 @@ export default function SixtyFeedbackForm({ existing, onSaveDraft, onLock }) {
   const [rating, setRating] = useState(existing?.rating || 0);
   const [finalThoughts, setFinalThoughts] = useState(existing?.comments || '');
   const [saving, setSaving] = useState(false);
+
+  // useState's initializer only runs on mount - if `existing` arrives or
+  // changes after that (e.g. a draft was saved and the parent re-renders
+  // this with fresh data), the form fields need to sync explicitly or
+  // they'll silently keep showing stale/empty values.
+  useEffect(() => {
+    setScores(existing?.category_scores || {});
+    setRating(existing?.rating || 0);
+    setFinalThoughts(existing?.comments || '');
+  }, [existing]);
   const [locking, setLocking] = useState(false);
   const [error, setError] = useState('');
 
