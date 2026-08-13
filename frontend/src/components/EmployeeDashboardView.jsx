@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { ClipboardList, Bell, Users2, AlertCircle, MessageSquareText, Briefcase } from 'lucide-react';
+import { ClipboardList, Users2, AlertCircle, MessageSquareText, Briefcase } from 'lucide-react';
 import * as dashboardService from '../services/dashboardService';
+import * as peerInsightService from '../services/peerInsightService';
 import { useFeatureFlags } from '../context/FeatureFlagsContext';
 import StatCard from './StatCard';
-import NotificationsWidget from './NotificationsWidget';
+import Modal from './Modal';
+import Skeleton from './Skeleton';
 
 function SectionCard({ title, children }) {
   return (
@@ -34,6 +36,19 @@ export default function EmployeeDashboardView() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [openProject, setOpenProject] = useState(null);
+  const [projectDetail, setProjectDetail] = useState(null);
+
+  async function handleOpenProject(project) {
+    setOpenProject(project);
+    setProjectDetail(null);
+    try {
+      const detail = await peerInsightService.getMyProjectDetail(project.id);
+      setProjectDetail(detail);
+    } catch {
+      setProjectDetail({ members: [] });
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +79,7 @@ export default function EmployeeDashboardView() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {showReviews ? (
           <ClickableStatCard
             to="/reviews"
@@ -92,34 +107,7 @@ export default function EmployeeDashboardView() {
           value={pendingCount}
           variant="skills"
         />
-        <ClickableStatCard
-          to="/notifications"
-          loading={loading}
-          icon={Bell}
-          label="Unread notifications"
-          value={summary?.unreadNotifications ?? 0}
-          variant="certs"
-        />
       </div>
-
-      {!loading && pendingCount > 0 && (
-        <div className="card card-reviews flex items-start gap-3 border-l-4 border-primary-600">
-          <AlertCircle size={18} className="mt-0.5 flex-shrink-0 text-primary-600" />
-          <div className="text-sm text-ink-light/80 dark:text-ink-dark/80">
-            {pending.selfReviewPending && activeCycle && (
-              <p>
-                Your self-review for <strong>{activeCycle.name}</strong> is still pending.
-              </p>
-            )}
-            {pending.pending360Count > 0 && (
-              <p>
-                You have {pending.pending360Count} anonymous peer review{pending.pending360Count === 1 ? '' : 's'} waiting
-                in 360° Feedback.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
 
       <SectionCard title="My projects">
         {loading ? (
@@ -135,22 +123,24 @@ export default function EmployeeDashboardView() {
         ) : (
           <ul className="space-y-2">
             {myProjects.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center gap-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50"
-              >
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
-                  <Briefcase size={16} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">{p.name}</p>
-                  {p.description && (
-                    <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">{p.description}</p>
-                  )}
-                </div>
-                <span className="flex-shrink-0 text-xs text-gray-400 dark:text-ink-dark/40">
-                  {p.member_count} member{p.member_count === 1 ? '' : 's'}
-                </span>
+              <li key={p.id}>
+                <button
+                  onClick={() => handleOpenProject(p)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-primary-50 p-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+                >
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                    <Briefcase size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">{p.name}</p>
+                    {p.description && (
+                      <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">{p.description}</p>
+                    )}
+                  </div>
+                  <span className="flex-shrink-0 text-xs text-gray-400 dark:text-ink-dark/40">
+                    {p.member_count} member{p.member_count === 1 ? '' : 's'}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -179,7 +169,44 @@ export default function EmployeeDashboardView() {
         </SectionCard>
       )}
 
-      <NotificationsWidget />
+      <Modal open={!!openProject} onClose={() => setOpenProject(null)} title={openProject?.name || 'Project'}>
+        {projectDetail === null ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {projectDetail.description && (
+              <p className="mb-3 text-sm text-ink-light/60 dark:text-ink-dark/60">{projectDetail.description}</p>
+            )}
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-light/40 dark:text-ink-dark/40">
+              Members ({projectDetail.members.length})
+            </p>
+            {projectDetail.members.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                  {m.first_name?.[0]}
+                  {m.last_name?.[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                    {m.first_name} {m.last_name}
+                  </p>
+                  <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">
+                    {m.job_title || 'No title set'}
+                    {m.department ? ` · ${m.department}` : ''}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

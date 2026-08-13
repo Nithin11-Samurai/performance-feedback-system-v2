@@ -1,11 +1,21 @@
 import { useState } from 'react';
-import { KeyRound, AlertCircle, Phone } from 'lucide-react';
+import { KeyRound, AlertCircle, Phone, IdCard } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import * as authService from '../services/authService';
 import * as userService from '../services/userService';
 import AvatarUpload from '../components/AvatarUpload';
+
+/** Workday-style read-only row: label on the left, value on the right, a hairline underneath. */
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between border-b border-gray-50 py-3 last:border-0 dark:border-primary-900/40">
+      <span className="text-sm text-ink-light/55 dark:text-ink-dark/55">{label}</span>
+      <span className="text-sm font-medium text-gray-900 dark:text-ink-dark">{value}</span>
+    </div>
+  );
+}
 
 export default function Profile() {
   usePageTitle('My Profile');
@@ -18,7 +28,6 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Feature 6: self-editable personal-contact fields.
   const [contactForm, setContactForm] = useState({
     phone: user.phone || '',
     address: user.address || '',
@@ -63,9 +72,10 @@ export default function Profile() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div className="card card-reviews">
-        <div className="mb-4 flex items-center gap-4">
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* --- Header: prominent, tinted, Workday-style profile banner --- */}
+      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-6 dark:bg-primary-900/20">
+        <div className="relative z-10 flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
           <AvatarUpload
             userId={user.id}
             firstName={user.first_name}
@@ -73,47 +83,46 @@ export default function Profile() {
             avatarUrl={user.avatar_url}
             onUploaded={refreshUser}
           />
-          <div>
-            <h3 className="font-display text-base font-semibold">Your details</h3>
-            <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Click the camera icon to update your photo.</p>
-          </div>
-        </div>
-        <dl className="space-y-3 text-sm">
-          <div className="flex justify-between border-b border-primary-50 pb-2 dark:border-primary-900/50">
-            <dt className="text-ink-light/50 dark:text-ink-dark/50">Name</dt>
-            <dd className="font-medium">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-xl font-semibold text-gray-900 dark:text-ink-dark">
               {user.first_name} {user.last_name}
-            </dd>
+            </h2>
+            <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">
+              {user.job_title || 'No job title set'}
+              {user.department ? ` · ${user.department}` : ''}
+            </p>
+            <p className="mt-0.5 text-xs text-ink-light/40 dark:text-ink-dark/40">{user.email}</p>
           </div>
-          <div className="flex justify-between border-b border-primary-50 pb-2 dark:border-primary-900/50">
-            <dt className="text-ink-light/50 dark:text-ink-dark/50">Email</dt>
-            <dd>{user.email}</dd>
-          </div>
-          <div className="flex justify-between border-b border-primary-50 pb-2 dark:border-primary-900/50">
-            <dt className="text-ink-light/50 dark:text-ink-dark/50">Employee code</dt>
-            <dd className="data-mono">{user.employee_code}</dd>
-          </div>
-          <div className="flex justify-between border-b border-primary-50 pb-2 dark:border-primary-900/50">
-            <dt className="text-ink-light/50 dark:text-ink-dark/50">Job title</dt>
-            <dd>{user.job_title || 'N/A'}</dd>
-          </div>
-          <div className="flex justify-between border-b border-primary-50 pb-2 dark:border-primary-900/50">
-            <dt className="text-ink-light/50 dark:text-ink-dark/50">Department</dt>
-            <dd>{user.department || 'N/A'}</dd>
-          </div>
-          <div className="flex justify-between pb-2">
-            <dt className="text-ink-light/50 dark:text-ink-dark/50">Date of joining</dt>
-            <dd>{user.date_of_joining ? new Date(user.date_of_joining).toLocaleDateString() : 'N/A'}</dd>
-          </div>
-        </dl>
-        <p className="mt-4 text-xs text-ink-light/40 dark:text-ink-dark/40">
-          To update your job title, department, or manager, contact HR.
-        </p>
+          <span className="flex-shrink-0 rounded-full bg-white px-3 py-1 text-xs font-medium text-primary-700 shadow-sm dark:bg-primary-950 dark:text-primary-200">
+            {user.employee_code}
+          </span>
+        </div>
+        <div className="pointer-events-none absolute -right-6 -top-8 h-32 w-32 rounded-full bg-primary-100/60" aria-hidden="true" />
       </div>
 
-      <div className="card card-reviews">
-        <h3 className="mb-4 flex items-center gap-2 font-display text-base font-semibold">
-          <Phone size={16} /> Contact information
+      {/* --- Everything below flows as one continuous page, no boxed sections --- */}
+
+      <section>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-ink-dark">
+          <IdCard size={15} /> Personal details
+        </h3>
+        <div className="rounded-2xl border border-gray-100 px-4 dark:border-primary-900/50">
+          <InfoRow label="Employee code" value={user.employee_code} />
+          <InfoRow label="Job title" value={user.job_title || 'N/A'} />
+          <InfoRow label="Department" value={user.department || 'N/A'} />
+          <InfoRow
+            label="Date of joining"
+            value={user.date_of_joining ? new Date(user.date_of_joining).toLocaleDateString() : 'N/A'}
+          />
+        </div>
+        <p className="mt-2 text-xs text-ink-light/40 dark:text-ink-dark/40">
+          To update your job title, department, or manager, contact HR.
+        </p>
+      </section>
+
+      <section>
+        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-ink-dark">
+          <Phone size={15} /> Contact information
         </h3>
         <p className="mb-4 text-xs text-ink-light/50 dark:text-ink-dark/50">
           You can update these yourself — no need to go through HR.
@@ -136,7 +145,7 @@ export default function Profile() {
               onChange={(e) => setContactForm((f) => ({ ...f, address: e.target.value }))}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="label">Emergency contact name</label>
               <input
@@ -158,11 +167,11 @@ export default function Profile() {
             {savingContact ? 'Saving…' : 'Save contact info'}
           </button>
         </form>
-      </div>
+      </section>
 
-      <div className="card card-reviews">
-        <h3 className="mb-4 flex items-center gap-2 font-display text-base font-semibold">
-          <KeyRound size={16} /> Change password
+      <section>
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-ink-dark">
+          <KeyRound size={15} /> Change password
         </h3>
 
         {error && (
@@ -208,7 +217,7 @@ export default function Profile() {
             {saving ? 'Updating…' : 'Change password'}
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

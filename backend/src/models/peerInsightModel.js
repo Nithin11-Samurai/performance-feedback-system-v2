@@ -266,27 +266,43 @@ async function listActiveRoundsWithPending() {
 }
 
 /** Every employee (subject) with at least one submitted feedback, and their average overall rating across ALL their submitted feedback (any project). Powers the org-wide rating distribution dashboard. */
-async function getOrgWideRatingSummary() {
+async function getOrgWideRatingSummary(groupId) {
+  const params = [];
+  let groupFilter = '';
+  if (groupId) {
+    params.push(groupId);
+    groupFilter = 'AND r.project_group_id = $1';
+  }
   const result = await query(
     `SELECT s.id, s.first_name, s.last_name, ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
      FROM peer_insight_feedback f
      JOIN users s ON s.id = f.subject_id
-     WHERE f.status = 'submitted' AND f.rating IS NOT NULL
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     WHERE f.status = 'submitted' AND f.rating IS NOT NULL ${groupFilter}
      GROUP BY s.id, s.first_name, s.last_name
-     ORDER BY avg_rating DESC`
+     ORDER BY avg_rating DESC`,
+    params
   );
   return result.rows;
 }
 
 /** Average rating per calendar month, across all submitted 360 feedback org-wide - powers the Rating Trend chart. */
-async function getMonthlyRatingTrend() {
+async function getMonthlyRatingTrend(groupId) {
+  const params = [];
+  let groupFilter = '';
+  if (groupId) {
+    params.push(groupId);
+    groupFilter = 'AND r.project_group_id = $1';
+  }
   const result = await query(
     `SELECT TO_CHAR(f.submitted_at, 'YYYY-MM') AS month,
             ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
      FROM peer_insight_feedback f
-     WHERE f.status = 'submitted' AND f.rating IS NOT NULL AND f.submitted_at IS NOT NULL
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     WHERE f.status = 'submitted' AND f.rating IS NOT NULL AND f.submitted_at IS NOT NULL ${groupFilter}
      GROUP BY TO_CHAR(f.submitted_at, 'YYYY-MM')
-     ORDER BY month ASC`
+     ORDER BY month ASC`,
+    params
   );
   return result.rows;
 }

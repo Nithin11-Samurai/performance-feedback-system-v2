@@ -1,159 +1,61 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Users,
-  Sparkles,
-  Award,
-  ClipboardList,
-  ShieldCheck,
-  Settings,
-  X,
-  BarChart3,
-  ChevronsLeft,
-  ChevronsRight,
-  ShieldAlert,
-  Users2,
-  Cog,
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useFeatureFlags } from '../context/FeatureFlagsContext';
-import { ROLES, ADMIN_TIER_ROLES } from '../utils/roles';
-import logo from '../assets/logo-samurai.png';
+import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
+import { Activity } from 'lucide-react';
+import Skeleton from './Skeleton';
 
-const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN], featureKey: 'skills' },
-  {
-    to: '/certifications',
-    label: 'Certifications',
-    icon: Award,
-    roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN],
-    featureKey: 'certifications',
-  },
-  { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: null, featureKey: 'reviews' },
-  { to: '/peer-insights', label: '360° Feedback', icon: Users2, roles: null },
-  { to: '/team', label: 'My Team', icon: Users, roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES] },
-  { to: '/admin/employees', label: 'Employees', icon: ShieldCheck, roles: ADMIN_TIER_ROLES },
-  {
-    to: '/admin/cycles',
-    label: 'Review Cycles',
-    icon: Settings,
-    roles: ADMIN_TIER_ROLES,
-    featureKey: 'review_cycles',
-  },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3, roles: ADMIN_TIER_ROLES, featureKey: 'analytics' },
-  {
-    to: '/skills-certs-overview',
-    label: 'Skills and Certifications',
-    icon: Award,
-    roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES],
-    featureKey: 'skills_certs_overview',
-  },
-  { to: '/activity-log', label: 'Activity Log', icon: ShieldAlert, roles: ADMIN_TIER_ROLES },
-  { to: '/permissions', label: 'Permissions', icon: ShieldCheck, roles: ADMIN_TIER_ROLES },
-  { to: '/settings', label: 'Settings', icon: Cog, roles: ADMIN_TIER_ROLES },
-];
+const ACTION_LABELS = {
+  UPDATE_USER_PROFILE: 'updated a profile',
+  DEACTIVATE_USER: 'deactivated an employee',
+  REACTIVATE_USER: 'reactivated an employee',
+};
 
-function getStoredCollapsed() {
-  return localStorage.getItem('sidebarCollapsed') === 'true';
+function describeAction(action) {
+  return ACTION_LABELS[action] || action.replace(/_/g, ' ').toLowerCase();
 }
 
-/**
- * Renders as a static column on desktop (md+, collapsible to icon-only) and
- * as a slide-in drawer with a backdrop on mobile, controlled by
- * `mobileOpen`/`onClose`.
- */
-export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
-  const { user } = useAuth();
-  const { isVisible } = useFeatureFlags();
-  const [collapsed, setCollapsed] = useState(getStoredCollapsed);
-
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => (!item.roles || item.roles.includes(user?.role)) && (!item.featureKey || isVisible(item.featureKey))
-  );
-
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      localStorage.setItem('sidebarCollapsed', String(!prev));
-      return !prev;
-    });
-  }
-
-  function navLinks(onItemClick, showLabels) {
-    return visibleItems.map(({ to, label, icon: Icon }) => (
-      <NavLink
-        key={to}
-        to={to}
-        onClick={onItemClick}
-        title={showLabels ? undefined : label}
-        className={({ isActive }) =>
-          `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-150 ${
-            !showLabels ? 'justify-center' : ''
-          } ${
-            isActive
-              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200'
-              : 'text-gray-500 hover:translate-x-0.5 hover:bg-primary-50/60 hover:text-primary-700 dark:text-ink-dark/65 dark:hover:bg-primary-900/30 dark:hover:text-primary-200'
-          }`
-        }
-      >
-        {({ isActive }) => (
-          <>
-            <Icon size={17} className={`flex-shrink-0 ${isActive ? 'text-primary-600' : ''}`} />
-            {showLabels && label}
-          </>
-        )}
-      </NavLink>
-    ));
-  }
-
+export default function RecentActivityWidget({ activity, loading }) {
   return (
-    <>
-      {/* Desktop: static column, collapsible */}
-      <aside
-        className={`hidden flex-shrink-0 flex-col border-r border-primary-100 bg-surface-light transition-all duration-200 dark:border-primary-900 dark:bg-surface-dark md:flex ${
-          collapsed ? 'w-16' : 'w-60'
-        }`}
-      >
-        <div className="flex h-[72px] items-center gap-2 border-b border-primary-100/70 px-5 dark:border-primary-900/70">
-          {!collapsed && <img src={logo} alt="PinkSamurais" className="h-9 w-auto object-contain" />}
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-primary-900/50 dark:bg-surface-dark">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-ink-dark">
+          <Activity size={15} className="text-primary-500" /> Recent activity
+        </h3>
+        <Link to="/activity-log" className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300">
+          View all
+        </Link>
+      </div>
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
         </div>
-
-        <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5">{navLinks(undefined, !collapsed)}</nav>
-
-        <button
-          onClick={toggleCollapsed}
-          className="flex items-center justify-center gap-2 border-t border-primary-100 py-3 text-xs text-ink-light/50 hover:bg-primary-50 dark:border-primary-900 dark:text-ink-dark/50 dark:hover:bg-primary-900/40"
-        >
-          {collapsed ? (
-            <ChevronsRight size={16} />
-          ) : (
-            <>
-              <ChevronsLeft size={16} /> Collapse
-            </>
-          )}
-        </button>
-      </aside>
-
-      {/* Mobile: backdrop + slide-in drawer (always full width with labels) */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
-          <aside className="relative flex h-full w-64 flex-col bg-surface-light shadow-card dark:bg-surface-dark">
-            <div className="flex h-[72px] items-center justify-between gap-2 border-b border-primary-100/70 px-5 dark:border-primary-900/70">
-              <img src={logo} alt="PinkSamurais" className="h-8 w-auto object-contain" />
-              <button
-                onClick={onClose}
-                aria-label="Close menu"
-                className="rounded-md p-1.5 text-ink-light/50 hover:bg-primary-50 dark:text-ink-dark/50 dark:hover:bg-primary-900/40"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5">{navLinks(onClose, true)}</nav>
-          </aside>
-        </div>
+      ) : activity.length === 0 ? (
+        <p className="py-6 text-center text-sm text-gray-400 dark:text-ink-dark/50">No recent activity.</p>
+      ) : (
+        <ul>
+          {activity.map((a, i) => (
+            <li
+              key={i}
+              className={`flex items-center gap-3 py-3 ${i > 0 ? 'border-t border-gray-100 dark:border-primary-900/40' : ''}`}
+            >
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                {a.first_name?.[0]}
+                {a.last_name?.[0]}
+              </div>
+              <p className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-ink-dark/80">
+                <span className="font-medium text-gray-900 dark:text-ink-dark">
+                  {a.first_name} {a.last_name}
+                </span>{' '}
+                {describeAction(a.action)}
+              </p>
+              <span className="flex-shrink-0 whitespace-nowrap text-xs text-gray-400 dark:text-ink-dark/40">
+                {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
-    </>
+    </div>
   );
 }

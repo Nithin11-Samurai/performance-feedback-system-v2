@@ -12,13 +12,13 @@ async function downloadBlob(url, filename) {
   window.URL.revokeObjectURL(blobUrl);
 }
 
-export async function getRatingDistribution() {
-  const { data } = await api.get('/peer-insights/rating-distribution');
+export async function getRatingDistribution(groupId) {
+  const { data } = await api.get('/peer-insights/rating-distribution', { params: groupId ? { groupId } : {} });
   return data.data.distribution;
 }
 
-export async function getRatingTrend() {
-  const { data } = await api.get('/peer-insights/rating-trend');
+export async function getRatingTrend(groupId) {
+  const { data } = await api.get('/peer-insights/rating-trend', { params: groupId ? { groupId } : {} });
   return data.data.trend;
 }
 
@@ -27,17 +27,16 @@ export async function getProjectsWithPendingFeedback() {
   return data.data.projects;
 }
 
-export async function getTopRatedEmployees(limit = 5) {
-  const { data } = await api.get('/peer-insights/top-rated-employees', { params: { limit } });
+export async function getTopRatedEmployees(limit = 5, groupId) {
+  const { data } = await api.get('/peer-insights/top-rated-employees', { params: groupId ? { limit, groupId } : { limit } });
   return data.data.employees;
 }
 
-export async function exportRatingDistributionExcel() {
-  await downloadBlob('/peer-insights/rating-distribution/export/excel', '360-rating-distribution.xlsx');
-}
-
-export async function exportRatingDistributionPdf() {
-  await downloadBlob('/peer-insights/rating-distribution/export/pdf', '360-rating-distribution.pdf');
+export async function exportRatingDistributionExcel(groupId) {
+  const url = groupId
+    ? `/peer-insights/rating-distribution/export/excel?groupId=${groupId}`
+    : '/peer-insights/rating-distribution/export/excel';
+  await downloadBlob(url, groupId ? '360-rating-distribution-project.xlsx' : '360-rating-distribution.xlsx');
 }
 
 // Item 2: the actual 360° Feedback question set.
@@ -60,6 +59,11 @@ export async function listGroups() {
 export async function getGroup(groupId) {
   const { data } = await api.get(`/peer-insights/groups/${groupId}`);
   return data.data.group; // includes .members
+}
+
+export async function getMyProjectDetail(groupId) {
+  const { data } = await api.get(`/peer-insights/my-groups/${groupId}`);
+  return data.data.project; // includes .members with job_title/department, safe for employees
 }
 
 export async function updateGroup(groupId, { name, description }) {
@@ -122,6 +126,11 @@ export async function getRoundAssignmentDetail(roundId) {
 
 export async function remindReviewer(feedbackId) {
   const { data } = await api.patch(`/peer-insights/feedback/${feedbackId}/remind`);
+  return data;
+}
+
+export async function remindAllPendingForRound(roundId) {
+  const { data } = await api.patch(`/peer-insights/rounds/${roundId}/remind-all`);
   return data;
 }
 

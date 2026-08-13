@@ -24,6 +24,7 @@ router.get('/feedback-form-schema', peerInsightController.getFeedbackFormSchema)
 router.post('/groups', adminOnly, [body('name').trim().notEmpty()], validate, peerInsightController.createGroup);
 router.get('/groups', adminOnly, peerInsightController.listGroups);
 router.get('/groups/:groupId', adminOnly, peerInsightController.getGroup);
+router.get('/my-groups/:groupId', peerInsightController.getMyProjectDetail);
 router.patch('/groups/:groupId', adminOnly, peerInsightController.updateGroup);
 router.delete('/groups/:groupId', adminOnly, peerInsightController.deleteGroup);
 router.post('/groups/:groupId/members', adminOnly, [body('userId').isUUID()], validate, peerInsightController.addMember);
@@ -39,6 +40,7 @@ router.get('/rounds/:roundId/completion-summary', adminOnly, peerInsightControll
 router.get('/rounds/:roundId/subjects', adminOnly, peerInsightController.listSubjectsInRound);
 router.get('/rounds/:roundId/assignments-detail', adminOnly, peerInsightController.getRoundAssignmentDetail);
 router.patch('/feedback/:feedbackId/remind', adminOnly, peerInsightController.remindReviewer);
+router.patch('/rounds/:roundId/remind-all', adminOnly, peerInsightController.remindAllPendingForRound);
 
 // --- Reviewer-facing (any authenticated user, scoped to self in service) ---
 router.get('/my-assignments', peerInsightController.listAllMyPendingAssignments);

@@ -64,6 +64,28 @@ async function getGroup(requesterUser, groupId) {
   return { ...group, members };
 }
 
+/**
+ * Employee-facing: any member of a project can see who else is in it
+ * (that's not secret - peers already know their own teammates), with
+ * safe fields only (name, job title, department). This is NOT an
+ * admin-tier check - it's "are you actually a member of this specific
+ * group", so one employee can't browse an unrelated project's roster.
+ * Never exposes review assignments, submission status, or anything
+ * that would leak reviewer identity.
+ */
+async function getMyProjectDetail(requesterUser, groupId) {
+  const group = await peerInsightModel.findGroupById(groupId);
+  if (!group) throw AppError.notFound('Project not found');
+
+  const members = await peerInsightModel.listMembers(groupId);
+  const isMember = members.some((m) => m.id === requesterUser.id);
+  if (!isMember) {
+    throw AppError.forbidden("You can only view details for projects you're a member of.");
+  }
+
+  return { id: group.id, name: group.name, description: group.description, members };
+}
+
 async function addMember(requesterUser, groupId, userId) {
   assertAdminTier(requesterUser);
   const user = await userModel.findById(userId);
@@ -203,9 +225,9 @@ async function getRoundAssignmentDetail(requesterUser, roundId) {
  * (1-5) so HR can see, e.g., "6 employees averaging 4/5" and click
  * through to see exactly who.
  */
-async function getRatingDistribution(requesterUser) {
+async function getRatingDistribution(requesterUser, groupId) {
   assertAdminTier(requesterUser);
-  const rows = await peerInsightModel.getOrgWideRatingSummary();
+  const rows = await peerInsightModel.getOrgWideRatingSummary(groupId);
 
   const buckets = [5, 4, 3, 2, 1].map((rating) => ({
     rating,
@@ -225,19 +247,50 @@ async function getProjectsWithPendingFeedback(requesterUser) {
 }
 
 /** Org-wide average rating per month, for the Rating Trend chart. */
-async function getRatingTrend(requesterUser) {
+async function getRatingTrend(requesterUser, groupId) {
   assertAdminTier(requesterUser);
-  return peerInsightModel.getMonthlyRatingTrend();
+  return peerInsightModel.getMonthlyRatingTrend(groupId);
 }
 
 /** Top N employees by average rating, for the Top Rated Employees table. */
-async function getTopRatedEmployees(requesterUser, limit = 5) {
+async function getTopRatedEmployees(requesterUser, limit = 5, groupId) {
   assertAdminTier(requesterUser);
-  const rows = await peerInsightModel.getOrgWideRatingSummary();
+  const rows = await peerInsightModel.getOrgWideRatingSummary(groupId);
   return rows.slice(0, limit);
 }
 
 /** HR nudges one specific pending reviewer - sends a notification + email, doesn't reveal WHO they're reviewing to anyone else. */
+/** Reminds every distinct pending reviewer in a round at once, deduplicated so someone pending on 2+ subjects only gets one notification. */
+async function remindAllPendingForRound(requesterUser, roundId) {
+  assertAdminTier(requesterUser);
+  const assignments = await peerInsightModel.listAssignmentsWithStatusForRound(roundId);
+  const pending = assignments.filter((a) => a.status === 'pending');
+
+  const seen = new Set();
+  const reviewers = [];
+  for (const a of pending) {
+    if (seen.has(a.reviewer_id)) continue;
+    seen.add(a.reviewer_id);
+    reviewers.push({ id: a.reviewer_id, email: a.reviewer_email, first_name: a.reviewer_first_name, last_name: a.reviewer_last_name });
+  }
+
+  await Promise.all(
+    reviewers.map((r) =>
+      notificationService.notifyUser({
+        userId: r.id,
+        type: 'review_submitted',
+        title: 'Reminder: 360° Feedback pending',
+        message: 'You have anonymous peer reviews still waiting on you in 360° Feedback. It only takes a couple of minutes.',
+        link: '/peer-insights',
+        email: r.email,
+        recipientName: r.first_name,
+      })
+    )
+  );
+
+  return { remindedCount: reviewers.length };
+}
+
 async function remindReviewer(requesterUser, feedbackId) {
   assertAdminTier(requesterUser);
   const feedback = await peerInsightModel.findFeedbackById(feedbackId);
@@ -536,6 +589,7 @@ module.exports = {
   updateGroup,
   listGroups,
   getGroup,
+  getMyProjectDetail,
   addMember,
   removeMember,
   deleteGroup,
@@ -552,6 +606,7 @@ module.exports = {
   getProjectsWithPendingFeedback,
   getTopRatedEmployees,
   remindReviewer,
+  remindAllPendingForRound,
   listMyAssignments,
   listAllMyPendingAssignments,
   saveDraft,

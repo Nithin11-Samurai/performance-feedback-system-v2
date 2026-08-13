@@ -32,7 +32,7 @@ export default function StatCard({ icon: Icon, label, value, sublabel, variant =
   }
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-primary-900/50 dark:bg-surface-dark">
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-primary-900/50 dark:bg-surface-dark">
       <div className="flex items-center gap-4">
         {Icon && (
           <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${iconStyle}`}>

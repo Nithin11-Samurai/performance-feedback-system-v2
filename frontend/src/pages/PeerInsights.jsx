@@ -18,14 +18,12 @@ import {
   BarChart3,
   Check,
   FileSpreadsheet,
-  FileDown,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
-import CategoryBreakdownList from '../components/CategoryBreakdownList';
 import { generateStructuredSummary } from '../utils/summaryGenerator';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
@@ -44,6 +42,25 @@ export default function PeerInsights() {
 // HR / Admin-tier management view
 // ============================================================================
 
+// Category descriptions are stored as questions in the backend (used
+// when a reviewer is answering), but read better as plain statements
+// when HR is reviewing someone's feedback afterward. This is purely a
+// display-layer rewording — the underlying category key/schema is
+// untouched, so nothing about scoring or the review form changes.
+const CATEGORY_STATEMENTS = {
+  self_awareness: 'Uses their strengths to handle tough situations, stays calm under pressure, and learns from the experience.',
+  driving_result: 'Sets goals, completes tasks on time, solves problems well, and tries to keep improving their work.',
+  leadership: 'Supports others, acts responsibly, takes initiative, and adapts to change.',
+  communication: 'Communicates clearly, gives and receives feedback well, and promotes open communication in the team.',
+  teamwork: 'Supports the team, shares ideas, handles conflicts well, and appreciates others.',
+  growth_development: 'Builds skills and habits that help them grow, work more efficiently, and have a bigger impact.',
+  starc: 'Takes actions to support company initiatives and promote overall growth while upholding sincerity, trust, approachability, respect, and curiosity.',
+};
+
+function categoryStatement(category) {
+  return CATEGORY_STATEMENTS[category.key] || category.question;
+}
+
 function HrPeerInsightsView() {
   const { showToast } = useToast();
   const [groups, setGroups] = useState(null);
@@ -59,31 +76,48 @@ function HrPeerInsightsView() {
   const [ratingTrend, setRatingTrend] = useState(null);
   const [topRated, setTopRated] = useState(null);
   const [pendingProjects, setPendingProjects] = useState(null);
+  const [remindingRoundId, setRemindingRoundId] = useState(null);
+  const [overviewProjectFilter, setOverviewProjectFilter] = useState('');
   const [expandedBucket, setExpandedBucket] = useState(null);
   const [bucketFilter, setBucketFilter] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    if (activeTab === 'overview' && distribution === null) {
-      peerInsightService.getRatingDistribution().then(setDistribution);
-      peerInsightService.getRatingTrend().then(setRatingTrend);
-      peerInsightService.getTopRatedEmployees(5).then(setTopRated);
-      peerInsightService.getProjectsWithPendingFeedback().then(setPendingProjects);
+    if (activeTab !== 'overview') return;
+    peerInsightService
+      .getRatingDistribution(overviewProjectFilter || undefined)
+      .then(setDistribution)
+      .catch(() => setDistribution({ totalEmployees: 0, buckets: [] }));
+    peerInsightService
+      .getRatingTrend(overviewProjectFilter || undefined)
+      .then(setRatingTrend)
+      .catch(() => setRatingTrend([]));
+    peerInsightService
+      .getTopRatedEmployees(5, overviewProjectFilter || undefined)
+      .then(setTopRated)
+      .catch(() => setTopRated([]));
+  }, [activeTab, overviewProjectFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'overview' && pendingProjects === null) {
+      peerInsightService
+        .getProjectsWithPendingFeedback()
+        .then(setPendingProjects)
+        .catch(() => setPendingProjects([]));
     }
-  }, [activeTab, distribution]);
+  }, [activeTab, pendingProjects]);
 
   /** Jumps straight into the round where the existing remind UI already lives, from the Overview tab. */
-  async function handleGoToPendingProject(groupId, roundId) {
+  async function handleRemindAllPending(roundId) {
+    setRemindingRoundId(roundId);
     try {
-      const [fullGroup, rounds] = await Promise.all([
-        peerInsightService.getGroup(groupId),
-        peerInsightService.listRoundsForGroup(groupId),
-      ]);
-      const fullRound = rounds.find((r) => r.id === roundId);
-      setSelectedGroup(fullGroup);
-      setSelectedRound(fullRound || rounds[0]);
+      const result = await peerInsightService.remindAllPendingForRound(roundId);
+      showToast(result.message);
+      peerInsightService.getProjectsWithPendingFeedback().then(setPendingProjects);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to open project.', 'error');
+      showToast(err.response?.data?.message || 'Failed to send reminders.', 'error');
+    } finally {
+      setRemindingRoundId(null);
     }
   }
 
@@ -142,24 +176,17 @@ function HrPeerInsightsView() {
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-5 dark:bg-primary-900/20">
-        <div className="relative z-10 max-w-lg">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-ink-dark">
-            <Users2 size={20} className="text-primary-600" /> Welcome to 360° Feedback!
-          </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-ink-dark/70">
-            Empower continuous growth with anonymous, constructive feedback. Track participation, review
-            insights, and drive meaningful improvement across teams and projects.
-          </p>
-        </div>
-        <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-primary-100/60" aria-hidden="true" />
-        <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-primary-200/40" aria-hidden="true" />
+      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-4 dark:bg-primary-900/20">
+        <h2 className="relative z-10 flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-ink-dark">
+          <Users2 size={18} className="text-primary-600" /> 360° Feedback — anonymous, project-based growth insights.
+        </h2>
+        <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary-100/60" aria-hidden="true" />
       </div>
 
       <div className="flex gap-1 border-b border-primary-100 dark:border-primary-900/70">
         {[
           { key: 'overview', label: '360° Feedback Overview', icon: BarChart3 },
-          { key: 'employee', label: 'Employee Feedback', icon: Users2 },
+          { key: 'employee', label: 'Employee Insights', icon: Users2 },
           { key: 'groups', label: 'Project Groups', icon: Briefcase },
         ].map((tab) => (
           <button
@@ -184,6 +211,19 @@ function HrPeerInsightsView() {
         </h3>
 
         <div className="mt-4">
+            <select
+              value={overviewProjectFilter}
+              onChange={(e) => setOverviewProjectFilter(e.target.value)}
+              className="input mb-4 w-auto text-sm"
+            >
+              <option value="">All projects</option>
+              {(groups || []).map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+
             {distribution === null ? (
               <Skeleton className="h-32 w-full" />
             ) : (
@@ -194,23 +234,16 @@ function HrPeerInsightsView() {
                       {distribution.totalEmployees}
                     </p>
                     <p className="text-xs text-ink-light/55 dark:text-ink-dark/55">
-                      employee{distribution.totalEmployees === 1 ? '' : 's'} with submitted 360° Feedback, org-wide
+                      employee{distribution.totalEmployees === 1 ? '' : 's'} with submitted 360° Feedback
+                      {overviewProjectFilter ? '' : ', org-wide'}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => peerInsightService.exportRatingDistributionExcel()}
-                      className="btn-secondary text-xs"
-                    >
-                      <FileSpreadsheet size={13} /> Export Excel
-                    </button>
-                    <button
-                      onClick={() => peerInsightService.exportRatingDistributionPdf()}
-                      className="btn-secondary text-xs"
-                    >
-                      <FileDown size={13} /> Export PDF
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => peerInsightService.exportRatingDistributionExcel(overviewProjectFilter || undefined)}
+                    className="btn-secondary text-xs"
+                  >
+                    <FileSpreadsheet size={13} /> Export Excel
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-5 gap-2">
@@ -374,10 +407,11 @@ function HrPeerInsightsView() {
                   </p>
                 </div>
                 <button
-                  onClick={() => handleGoToPendingProject(p.group_id, p.round_id)}
-                  className="btn-secondary text-xs"
+                  onClick={() => handleRemindAllPending(p.round_id)}
+                  disabled={remindingRoundId === p.round_id}
+                  className="btn-primary text-xs disabled:opacity-50"
                 >
-                  View &amp; remind
+                  {remindingRoundId === p.round_id ? 'Sending…' : `Remind all (${p.pending_count})`}
                 </button>
               </li>
             ))}
@@ -400,7 +434,7 @@ function HrPeerInsightsView() {
       <div className="relative">
         <div className="card card-reviews">
           <label className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <Search size={15} /> Employee Feedback Lookup
+            <Search size={15} /> Employee Insights Lookup
           </label>
           <input
             value={searchTerm}
@@ -480,21 +514,47 @@ function HrPeerInsightsView() {
             {groups
               .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
               .map((g) => (
-                <div key={g.id} className="card card-reviews cursor-pointer" onClick={() => setSelectedGroup(g)}>
-                  <div className="mb-2 flex items-start justify-between">
-                    <h4 className="font-display text-base font-semibold">{g.name}</h4>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDeleteGroup(g);
-                      }}
-                      className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                <div
+                  key={g.id}
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-primary-900/50 dark:bg-surface-dark"
+                  onClick={() => setSelectedGroup(g)}
+                >
+                  <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-primary-50 dark:bg-primary-900/30" />
+                  <div className="relative">
+                    <div className="mb-3 flex items-start justify-between">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
+                        <Briefcase size={20} />
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteGroup(g);
+                        }}
+                        className="text-ink-light/30 opacity-0 transition-opacity hover:text-danger group-hover:opacity-100 dark:text-ink-dark/30"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <h4 className="font-display text-base font-semibold text-gray-900 dark:text-ink-dark">{g.name}</h4>
+                    {g.description && (
+                      <p className="mt-1 line-clamp-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>
+                    )}
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="flex -space-x-2">
+                        {(g.members || []).slice(0, 4).map((m) => (
+                          <div
+                            key={m.id}
+                            className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-primary-200 text-[10px] font-semibold text-primary-800 dark:border-surface-dark dark:bg-primary-800 dark:text-primary-100"
+                          >
+                            {m.first_name?.[0]}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+                        {g.members.length} member{g.members.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
                   </div>
-                  {g.description && <p className="mb-2 text-sm text-ink-light/60 dark:text-ink-dark/60">{g.description}</p>}
-                  <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">{g.members.length} member(s)</p>
                 </div>
               ))}
           </div>
@@ -594,7 +654,7 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                         return (
                           <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
                             <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
-                            <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{c.question}</p>
+                            <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{categoryStatement(c)}</p>
                             <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
                               <Check size={12} /> {levelLabel}
                             </span>
@@ -1475,16 +1535,9 @@ function SubjectCuration({ round, subject, onBack }) {
       </div>
 
       <div className="card card-reviews">
-        <div className="mb-3 flex items-center justify-between">
-          <h4 className="font-display text-sm font-semibold">
-            Feedback breakdown ({breakdown?.reviewerCount ?? 0} peer{breakdown?.reviewerCount === 1 ? '' : 's'})
-          </h4>
-          {breakdown?.overallRatingAvg && (
-            <span className="text-sm font-semibold text-primary-700 dark:text-primary-300">
-              Avg overall: {breakdown.overallRatingAvg}/5
-            </span>
-          )}
-        </div>
+        <h4 className="mb-3 font-display text-sm font-semibold">
+          Feedback breakdown ({breakdown?.reviewerCount ?? 0} peer{breakdown?.reviewerCount === 1 ? '' : 's'})
+        </h4>
 
         {breakdown === null ? (
           <Skeleton className="h-32 w-full" />
@@ -1492,9 +1545,7 @@ function SubjectCuration({ round, subject, onBack }) {
           <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No submitted feedback yet.</p>
         ) : (
           <>
-            <CategoryBreakdownList breakdown={breakdown} />
-
-            <p className="mt-4 mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+            <p className="mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
               Individual reviewer feedback
             </p>
 
@@ -1515,7 +1566,7 @@ function SubjectCuration({ round, subject, onBack }) {
                           return (
                             <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
                               <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
-                              <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{c.question}</p>
+                              <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{categoryStatement(c)}</p>
                               <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
                                 <Check size={12} /> {levelLabel}
                               </span>

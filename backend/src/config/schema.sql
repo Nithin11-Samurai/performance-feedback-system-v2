@@ -589,3 +589,20 @@ BEGIN
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END $$;
+
+-- Round management: a planned end date (separate from closed_at, which
+-- is when a round actually got closed - it may close early or late), a
+-- flag so a round can be reopened after being closed without losing its
+-- history, and a "started" reminder-dedup marker matching the
+-- reviewCycleReminders.js pattern via email_log.
+ALTER TABLE peer_insight_rounds ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;
+ALTER TABLE peer_insight_rounds ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_set_updated_at_peer_insight_rounds') THEN
+        CREATE TRIGGER trg_set_updated_at_peer_insight_rounds
+        BEFORE UPDATE ON peer_insight_rounds
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END $$;

@@ -11,6 +11,15 @@ import RadialProgress from './RadialProgress';
 import RecentActivityWidget from './RecentActivityWidget';
 import UpcomingReviewsWidget from './UpcomingReviewsWidget';
 
+/** Wraps StatCard in a Link so clicking a KPI actually takes you to the relevant page. */
+function LinkedStatCard({ to, ...statCardProps }) {
+  return (
+    <Link to={to} className="block text-left transition-transform hover:-translate-y-0.5">
+      <StatCard {...statCardProps} />
+    </Link>
+  );
+}
+
 /**
  * Deliberately minimal: 4 KPI cards, one chart, two widgets — everything
  * else (department comparisons, rating distribution, skill/cert
@@ -103,18 +112,34 @@ export default function AdminDashboardView() {
 
       {/* --- KPI row --- */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard loading={loading} icon={Users} label="Total Employees" value={kpis?.totalEmployees ?? 0} variant="primary" />
+        <LinkedStatCard
+          to="/admin/employees"
+          loading={loading}
+          icon={Users}
+          label="Total Employees"
+          value={kpis?.totalEmployees ?? 0}
+          variant="primary"
+        />
         {showReviews ? (
           <>
-            <StatCard loading={loading} icon={Hourglass} label="Pending Reviews" value={kpis?.pendingReviews ?? 0} variant="notes" />
-            <StatCard
+            <LinkedStatCard
+              to="/admin/cycles"
+              loading={loading}
+              icon={Hourglass}
+              label="Pending Reviews"
+              value={kpis?.pendingReviews ?? 0}
+              variant="notes"
+            />
+            <LinkedStatCard
+              to="/admin/cycles"
               loading={loading}
               icon={CheckCircle2}
               label="Completed Reviews"
               value={kpis?.completedReviews ?? 0}
               variant="certs"
             />
-            <StatCard
+            <LinkedStatCard
+              to="/admin/cycles"
               loading={loading}
               icon={Star}
               label="Average Rating"
@@ -124,21 +149,24 @@ export default function AdminDashboardView() {
           </>
         ) : (
           <>
-            <StatCard
+            <LinkedStatCard
+              to="/peer-insights"
               loading={ratingDistribution === null}
               icon={Users2}
               label="Employees with 360° Feedback"
               value={ratingDistribution?.totalEmployees ?? 0}
               variant="certs"
             />
-            <StatCard
+            <LinkedStatCard
+              to="/peer-insights"
               loading={peerGroups === null}
               icon={Briefcase}
               label="Active Project Groups"
               value={peerGroups?.length ?? 0}
               variant="notes"
             />
-            <StatCard
+            <LinkedStatCard
+              to="/peer-insights"
               loading={ratingDistribution === null}
               icon={Star}
               label="Highest Rating Bucket"

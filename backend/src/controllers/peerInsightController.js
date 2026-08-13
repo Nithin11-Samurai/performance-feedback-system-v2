@@ -26,6 +26,11 @@ const getGroup = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { group } });
 });
 
+const getMyProjectDetail = asyncHandler(async (req, res) => {
+  const project = await peerInsightService.getMyProjectDetail(req.user, req.params.groupId);
+  res.json({ success: true, data: { project } });
+});
+
 const addMember = asyncHandler(async (req, res) => {
   await peerInsightService.addMember(req.user, req.params.groupId, req.body.userId);
   res.json({ success: true, message: 'Member added' });
@@ -97,13 +102,22 @@ const remindReviewer = asyncHandler(async (req, res) => {
   res.json({ success: true, message: `Reminder sent to ${result.reviewerName}`, data: result });
 });
 
+const remindAllPendingForRound = asyncHandler(async (req, res) => {
+  const result = await peerInsightService.remindAllPendingForRound(req.user, req.params.roundId);
+  res.json({
+    success: true,
+    message: result.remindedCount > 0 ? `Reminded ${result.remindedCount} reviewer${result.remindedCount === 1 ? '' : 's'}` : 'No pending reviewers to remind',
+    data: result,
+  });
+});
+
 const getRatingDistribution = asyncHandler(async (req, res) => {
-  const distribution = await peerInsightService.getRatingDistribution(req.user);
+  const distribution = await peerInsightService.getRatingDistribution(req.user, req.query.groupId || undefined);
   res.json({ success: true, data: { distribution } });
 });
 
 const getRatingTrend = asyncHandler(async (req, res) => {
-  const trend = await peerInsightService.getRatingTrend(req.user);
+  const trend = await peerInsightService.getRatingTrend(req.user, req.query.groupId || undefined);
   res.json({ success: true, data: { trend } });
 });
 
@@ -113,15 +127,17 @@ const getProjectsWithPendingFeedback = asyncHandler(async (req, res) => {
 });
 
 const getTopRatedEmployees = asyncHandler(async (req, res) => {
-  const employees = await peerInsightService.getTopRatedEmployees(req.user, Number(req.query.limit) || 5);
+  const employees = await peerInsightService.getTopRatedEmployees(req.user, Number(req.query.limit) || 5, req.query.groupId || undefined);
   res.json({ success: true, data: { employees } });
 });
 
 const exportRatingDistributionExcel = asyncHandler(async (req, res) => {
-  const distribution = await peerInsightService.getRatingDistribution(req.user);
+  const groupId = req.query.groupId || undefined;
+  const distribution = await peerInsightService.getRatingDistribution(req.user, groupId);
   const workbook = excelGenerator.buildRatingDistributionWorkbook(distribution);
+  const filename = groupId ? `360-rating-distribution-project.xlsx` : `360-rating-distribution.xlsx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename="360-rating-distribution.xlsx"');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   await workbook.xlsx.write(res);
   res.end();
 });
@@ -237,6 +253,7 @@ module.exports = {
   createGroup,
   listGroups,
   getGroup,
+  getMyProjectDetail,
   addMember,
   removeMember,
   updateGroup,
@@ -250,6 +267,7 @@ module.exports = {
   listSubjectsInRound,
   getRoundAssignmentDetail,
   remindReviewer,
+  remindAllPendingForRound,
   getRatingDistribution,
   getRatingTrend,
   getProjectsWithPendingFeedback,

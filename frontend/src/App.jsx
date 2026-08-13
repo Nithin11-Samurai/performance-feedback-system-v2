@@ -92,6 +92,14 @@ function AppShell() {
             <Route path="/notifications" element={<NotificationsCenter />} />
             <Route path="/peer-insights" element={<PeerInsights />} />
             <Route path="/profile" element={<Profile />} />
+            <Route
+              path="/reviews"
+              element={
+                <FeatureGate featureKey="reviews">
+                  <Reviews />
+                </FeatureGate>
+              }
+            />
 
             {/* Manager + Admin only */}
             <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ...ADMIN_TIER_ROLES]} />}>
@@ -134,19 +142,6 @@ function AppShell() {
 
             {/* Admin only */}
             <Route element={<ProtectedRoute allowedRoles={ADMIN_TIER_ROLES} />}>
-              {/* Temporarily restricted to Admin-tier while Reviews gets reworked —
-                  hidden from Employee/Manager for now. To revert: move this line back
-                  up into the open block above, and change its matching Sidebar.jsx
-                  entry back to `roles: null`. */}
-              <Route
-                path="/reviews"
-                element={
-                  <FeatureGate featureKey="reviews">
-                    <Reviews />
-                  </FeatureGate>
-                }
-              />
-
               <Route path="/notes" element={<Navigate to="/admin/employees" replace />} />
               <Route path="/admin/employees" element={<AdminEmployees />} />
               <Route
