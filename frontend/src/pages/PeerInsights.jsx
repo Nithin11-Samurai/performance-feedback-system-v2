@@ -15,6 +15,7 @@ import {
   Search,
   Briefcase,
   BarChart3,
+  Check,
   FileSpreadsheet,
   FileDown,
 } from 'lucide-react';
@@ -24,7 +25,7 @@ import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
 import CategoryBreakdownList from '../components/CategoryBreakdownList';
-import { generateStructuredSummary, generateReviewerSummary } from '../utils/summaryGenerator';
+import { generateStructuredSummary } from '../utils/summaryGenerator';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -417,10 +418,6 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
     <div className="space-y-2">
       {rawFeedback.map((f) => {
             const isOpen = expandedIds.has(f.id);
-            const reviewerSummary =
-              schema && f.category_scores
-                ? generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)
-                : null;
             return (
               <div key={f.id} className="rounded-md bg-primary-50/50 dark:bg-primary-900/20">
                 <button
@@ -429,11 +426,6 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                 >
                   <span className="text-sm font-medium">
                     {f.reviewer_first_name} {f.reviewer_last_name}
-                    {f.rating && (
-                      <span className="ml-2 text-xs font-normal text-ink-light/50 dark:text-ink-dark/50">
-                        Overall {f.rating}/5
-                      </span>
-                    )}
                   </span>
                   <ChevronDown
                     size={14}
@@ -441,30 +433,31 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                   />
                 </button>
                 {isOpen && (
-                  <div className="px-3 pb-3 text-sm">
-                    {schema && f.category_scores && (
-                      <div className="mb-3 flex flex-wrap gap-1.5">
-                        {schema.categories.map((c) => {
-                          const entry = f.category_scores[c.key];
-                          if (!entry?.score) return null;
-                          const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
-                          return (
-                            <span
-                              key={c.key}
-                              title={entry.comment || undefined}
-                              className="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-800 dark:bg-primary-900/60 dark:text-primary-100"
-                            >
-                              {c.label}: {levelLabel}
+                  <div className="space-y-4 px-3 pb-4 text-sm">
+                    {schema &&
+                      f.category_scores &&
+                      schema.categories.map((c, i) => {
+                        const entry = f.category_scores[c.key];
+                        if (!entry?.score) return null;
+                        const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
+                        return (
+                          <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
+                            <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
+                            <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{c.question}</p>
+                            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                              <Check size={12} /> {levelLabel}
                             </span>
-                          );
-                        })}
+                            {entry.comment && (
+                              <p className="mt-1.5 text-xs italic text-ink-light/60 dark:text-ink-dark/60">"{entry.comment}"</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    {f.comments && (
+                      <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
+                        <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
+                        <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">"{f.comments}"</p>
                       </div>
-                    )}
-                    {reviewerSummary?.body && <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>}
-                    {reviewerSummary?.finalThoughts && (
-                      <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
-                        Final thoughts: "{reviewerSummary.finalThoughts}"
-                      </p>
                     )}
                     {f.strengths && <p>Strengths: {f.strengths}</p>}
                     {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
@@ -1050,7 +1043,6 @@ function SubjectCuration({ round, subject, onBack }) {
   const { showToast } = useToast();
   const [rawFeedback, setRawFeedback] = useState(null);
   const [breakdown, setBreakdown] = useState(null);
-  const [showByReviewer, setShowByReviewer] = useState(false);
   const [summary, setSummary] = useState(null);
   const [summaryText, setSummaryText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1165,38 +1157,48 @@ function SubjectCuration({ round, subject, onBack }) {
           <>
             <CategoryBreakdownList breakdown={breakdown} />
 
-            <button
-              onClick={() => setShowByReviewer((v) => !v)}
-              className="mt-4 text-xs text-primary-600 hover:underline dark:text-primary-300"
-            >
-              {showByReviewer ? 'Hide' : 'Show'} full detail by reviewer
-            </button>
+            <p className="mt-4 mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+              Individual reviewer feedback
+            </p>
 
-            {showByReviewer && rawFeedback && (
-              <div className="mt-3 space-y-3">
-                {rawFeedback.map((f) => {
-                  const reviewerSummary =
-                    schema && f.category_scores
-                      ? generateReviewerSummary(f.category_scores, schema.categories, schema.likertScale, f.comments)
-                      : null;
-                  return (
-                    <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
-                      <p className="mb-2 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
-                        From {f.reviewer_first_name} {f.reviewer_last_name} {f.rating && `· Overall ${f.rating}/5`}
-                      </p>
-                      {reviewerSummary?.body && (
-                        <p className="text-ink-light/80 dark:text-ink-dark/80">{reviewerSummary.body}</p>
-                      )}
-                      {reviewerSummary?.finalThoughts && (
-                        <p className="mt-1.5 text-ink-light/80 dark:text-ink-dark/80">
-                          Final thoughts: "{reviewerSummary.finalThoughts}"
-                        </p>
+            {rawFeedback && (
+              <div className="space-y-2">
+                {rawFeedback.map((f) => (
+                  <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
+                    <p className="mb-3 font-medium text-gray-900 dark:text-ink-dark">
+                      {f.reviewer_first_name} {f.reviewer_last_name}
+                    </p>
+                    <div className="space-y-4">
+                      {schema &&
+                        f.category_scores &&
+                        schema.categories.map((c, i) => {
+                          const entry = f.category_scores[c.key];
+                          if (!entry?.score) return null;
+                          const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
+                          return (
+                            <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
+                              <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
+                              <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{c.question}</p>
+                              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                                <Check size={12} /> {levelLabel}
+                              </span>
+                              {entry.comment && (
+                                <p className="mt-1.5 text-xs italic text-ink-light/60 dark:text-ink-dark/60">"{entry.comment}"</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      {f.comments && (
+                        <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
+                          <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
+                          <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">"{f.comments}"</p>
+                        </div>
                       )}
                       {f.strengths && <p>Strengths: {f.strengths}</p>}
                       {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </>
