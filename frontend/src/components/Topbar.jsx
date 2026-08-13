@@ -31,21 +31,20 @@ export default function Topbar({ title, onOpenMenu }) {
   }
 
   return (
-    <header className="flex h-[72px] items-center gap-4 border-b border-primary-100/70 bg-surface-light px-4 dark:border-primary-900/70 dark:bg-surface-dark sm:px-6">
-      <button
-        onClick={onOpenMenu}
-        aria-label="Open menu"
-        className="rounded-md p-2 text-ink-light/70 hover:bg-primary-50 dark:text-ink-dark/70 dark:hover:bg-primary-900/40 md:hidden"
-      >
-        <Menu size={20} />
-      </button>
-      <h1 className="font-display text-lg font-semibold sm:text-xl md:hidden">{title}</h1>
-
-      <div className="flex flex-1 justify-center">
-        <GlobalSearchBar />
+    <header className="flex h-[72px] items-center justify-between border-b border-primary-100/70 bg-surface-light px-4 dark:border-primary-900/70 dark:bg-surface-dark sm:px-6">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenMenu}
+          aria-label="Open menu"
+          className="rounded-md p-2 text-ink-light/70 hover:bg-primary-50 dark:text-ink-dark/70 dark:hover:bg-primary-900/40 md:hidden"
+        >
+          <Menu size={20} />
+        </button>
+        <h1 className="font-display text-lg font-semibold sm:text-xl">{title}</h1>
       </div>
 
-      <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <GlobalSearchBar />
         <ThemeToggle />
         <NotificationBell />
 

@@ -1,118 +1,154 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, X } from 'lucide-react';
-import * as userService from '../services/userService';
-import { useAuth } from '../context/AuthContext';
-import { ROLES, isAdminTier } from '../utils/roles';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { Users, Hourglass, CheckCircle2, Star, AlertCircle, Users2 } from 'lucide-react';
+import * as dashboardService from '../services/dashboardService';
+import { useFeatureFlags } from '../context/FeatureFlagsContext';
+import StatCard from './StatCard';
+import RadialProgress from './RadialProgress';
+import UpcomingReviewsWidget from './UpcomingReviewsWidget';
+import RecentlyAddedEmployeesWidget from './RecentlyAddedEmployeesWidget';
+import NotificationsWidget from './NotificationsWidget';
 
-/**
- * Global search across employee name/ID/email/department/manager/role/status
- * (Feature 8). Only shown to Admin/Manager — same scoping as the backend
- * (manager's results are limited to their own team).
- */
-export default function GlobalSearchBar() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const containerRef = useRef(null);
+function SectionCard({ title, children }) {
+  return (
+    <div className="card card-reviews">
+      <h3 className="mb-4 font-display text-base font-semibold">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function EmptyState({ text }) {
+  return <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">{text}</p>;
+}
+
+export default function ManagerDashboardView() {
+  const { isVisible } = useFeatureFlags();
+  const showReviews = isVisible('reviews') || isVisible('review_cycles');
+
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    function onClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
+    let cancelled = false;
+    dashboardService
+      .getManagerDashboardSummary()
+      .then((data) => !cancelled && setSummary(data))
+      .catch((err) => !cancelled && setError(err.response?.data?.message || 'Failed to load dashboard data.'))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      return;
-    }
-    setLoading(true);
-    const handle = setTimeout(async () => {
-      try {
-        const data = await userService.globalSearch(query);
-        setResults(data);
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [query]);
-
-  if (!isAdminTier(user?.role) && user?.role !== ROLES.MANAGER) return null;
-
-  function goToEmployee(id) {
-    setQuery('');
-    setResults([]);
-    setOpen(false);
-    navigate(isAdminTier(user.role) ? '/admin/employees' : '/team', { state: { openEmployeeId: id } });
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger">
+        <AlertCircle size={16} /> {error}
+      </div>
+    );
   }
 
+  const kpis = summary?.kpis;
+  const reviewCompletion = summary?.charts?.reviewCompletion || { submitted: 0, pending: 0 };
+  const totalReviews = reviewCompletion.submitted + reviewCompletion.pending;
+  const completionPct = totalReviews ? Math.round((reviewCompletion.submitted / totalReviews) * 100) : 0;
+
+  const ratingDistData = [1, 2, 3, 4, 5].map((r) => ({
+    rating: `${r}★`,
+    count: summary?.charts?.ratingDistribution?.find((x) => x.rating === r)?.count || 0,
+  }));
+
   return (
-    <div className="relative hidden sm:block" ref={containerRef}>
-      <div className="relative">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-light/40 dark:text-ink-dark/40" />
-        <input
-          className="input w-56 pl-9 pr-14 text-sm sm:w-72 lg:w-96"
-          placeholder="Search employees, skills…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-        />
-        {!query && (
-          <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-400 dark:border-primary-800 dark:bg-primary-900/40 dark:text-ink-dark/40">
-            ⌘K
-          </kbd>
-        )}
-        {query && (
-          <button
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-light/40 hover:text-ink-light/70 dark:text-ink-dark/40"
-            onClick={() => setQuery('')}
-          >
-            <X size={13} />
-          </button>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard loading={loading} icon={Users} label="Team Size" value={kpis?.teamSize ?? 0} variant="primary" />
+        {showReviews ? (
+          <>
+            <StatCard loading={loading} icon={Hourglass} label="Pending Reviews" value={kpis?.pendingReviews ?? 0} variant="notes" />
+            <StatCard
+              loading={loading}
+              icon={CheckCircle2}
+              label="Completed Reviews"
+              value={kpis?.completedReviews ?? 0}
+              variant="certs"
+            />
+            <StatCard
+              loading={loading}
+              icon={Star}
+              label="Average Team Rating"
+              value={kpis?.averageRating != null ? `${kpis.averageRating}/5` : 'N/A'}
+              variant="rating"
+            />
+          </>
+        ) : (
+          <StatCard
+            loading={loading}
+            icon={Users2}
+            label="View team feedback"
+            value="360° Feedback"
+            sublabel="Reviews aren't enabled for your team yet"
+            variant="reviews"
+          />
         )}
       </div>
 
-      {open && query.trim().length >= 2 && (
-        <div className="absolute right-0 z-30 mt-1 w-80 max-w-[85vw] rounded-card border border-primary-100 bg-surface-light shadow-card dark:border-primary-900 dark:bg-surface-dark">
-          {loading ? (
-            <p className="px-4 py-3 text-sm text-ink-light/50 dark:text-ink-dark/50">Searching…</p>
-          ) : results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-ink-light/50 dark:text-ink-dark/50">No matches found.</p>
-          ) : (
-            <ul className="max-h-80 overflow-y-auto py-1">
-              {results.map((r) => (
-                <li key={r.id}>
-                  <button
-                    onClick={() => goToEmployee(r.id)}
-                    className="flex w-full flex-col items-start px-4 py-2 text-left text-sm hover:bg-primary-50 dark:hover:bg-primary-900/40"
-                  >
-                    <span className="font-medium">
-                      {r.first_name} {r.last_name}{' '}
-                      <span className="font-normal text-ink-light/40 dark:text-ink-dark/40">· {r.employee_code}</span>
-                    </span>
-                    <span className="text-xs text-ink-light/50 dark:text-ink-dark/50">
-                      {r.job_title || r.role} · {r.department || 'N/A'}
-                      {r.manager_first_name ? ` · Reports to ${r.manager_first_name} ${r.manager_last_name}` : ''}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+      {showReviews && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <SectionCard title="Team review completion">
+            <div className="flex justify-center py-2">
+              <RadialProgress
+                percent={completionPct}
+                color="#ea6bb3"
+                label="Completed"
+                sublabel={`${reviewCompletion.submitted} of ${totalReviews || 0}`}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Team rating distribution">
+            {loading ? (
+              <div className="skeleton h-[220px] w-full" />
+            ) : ratingDistData.every((d) => d.count === 0) ? (
+              <EmptyState text="No team ratings submitted yet." />
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={ratingDistData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f6c0df" />
+                  <XAxis dataKey="rating" fontSize={12} />
+                  <YAxis allowDecimals={false} fontSize={12} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#ea6bb3" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </SectionCard>
+
+          <NotificationsWidget />
         </div>
       )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {showReviews ? (
+          <UpcomingReviewsWidget cycles={summary?.widgets?.upcomingReviews || []} loading={loading} />
+        ) : (
+          <SectionCard title="360° Feedback">
+            <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">
+              Structured review cycles aren't enabled for your team yet. Anonymous 360° Feedback is available instead.
+            </p>
+            <Link
+              to="/peer-insights"
+              className="mt-4 block rounded-full border border-primary-200 py-2 text-center text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50 dark:border-primary-800 dark:text-primary-300 dark:hover:bg-primary-900/40"
+            >
+              Open 360° Feedback
+            </Link>
+          </SectionCard>
+        )}
+        <RecentlyAddedEmployeesWidget employees={summary?.widgets?.recentlyAddedEmployees || []} loading={loading} />
+        {!showReviews && <NotificationsWidget />}
+      </div>
     </div>
   );
 }

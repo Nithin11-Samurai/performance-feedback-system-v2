@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { ClipboardList, Bell, Users2, AlertCircle } from 'lucide-react';
+import { ClipboardList, Bell, Users2, AlertCircle, MessageSquareText } from 'lucide-react';
 import * as dashboardService from '../services/dashboardService';
+import { useFeatureFlags } from '../context/FeatureFlagsContext';
 import StatCard from './StatCard';
 import NotificationsWidget from './NotificationsWidget';
 
@@ -15,6 +16,9 @@ function SectionCard({ title, children }) {
 }
 
 export default function EmployeeDashboardView() {
+  const { isVisible } = useFeatureFlags();
+  const showReviews = isVisible('reviews');
+
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,13 +52,23 @@ export default function EmployeeDashboardView() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          loading={loading}
-          icon={ClipboardList}
-          label="Active review cycle"
-          value={activeCycle ? activeCycle.name : 'None'}
-          variant="reviews"
-        />
+        {showReviews ? (
+          <StatCard
+            loading={loading}
+            icon={ClipboardList}
+            label="Active review cycle"
+            value={activeCycle ? activeCycle.name : 'None'}
+            variant="reviews"
+          />
+        ) : (
+          <StatCard
+            loading={loading}
+            icon={MessageSquareText}
+            label="Pending 360° Feedback"
+            value={pending?.pending360Count || 0}
+            variant="reviews"
+          />
+        )}
         <StatCard loading={loading} icon={Users2} label="Pending action items" value={pendingCount} variant="skills" />
         <StatCard
           loading={loading}
@@ -84,25 +98,27 @@ export default function EmployeeDashboardView() {
         </div>
       )}
 
-      <SectionCard title="My rating trend over time">
-        {loading ? (
-          <div className="skeleton h-[220px] w-full" />
-        ) : ratingHistory.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-            No rated feedback yet — once managers or peers submit ratings across review cycles, your trend will appear here.
-          </p>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={ratingHistory}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f6c0df" />
-              <XAxis dataKey="cycle_name" fontSize={11} />
-              <YAxis domain={[0, 5]} fontSize={12} allowDecimals={false} />
-              <Tooltip />
-              <Line type="monotone" dataKey="avg_rating" stroke="#ea6bb3" strokeWidth={2} dot={{ fill: '#ea6bb3' }} />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </SectionCard>
+      {showReviews && (
+        <SectionCard title="My rating trend over time">
+          {loading ? (
+            <div className="skeleton h-[220px] w-full" />
+          ) : ratingHistory.length === 0 ? (
+            <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              No rated feedback yet — once managers or peers submit ratings across review cycles, your trend will appear here.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={ratingHistory}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f6c0df" />
+                <XAxis dataKey="cycle_name" fontSize={11} />
+                <YAxis domain={[0, 5]} fontSize={12} allowDecimals={false} />
+                <Tooltip />
+                <Line type="monotone" dataKey="avg_rating" stroke="#ea6bb3" strokeWidth={2} dot={{ fill: '#ea6bb3' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </SectionCard>
+      )}
 
       <NotificationsWidget />
     </div>

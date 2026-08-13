@@ -24,28 +24,27 @@ export default function UpcomingReviewsWidget({ cycles, loading, viewAllLink }) 
           ))}
         </div>
       ) : cycles.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 py-4 text-center">
-          <svg viewBox="0 0 100 90" className="h-20 w-24" aria-hidden="true">
-            <circle cx="20" cy="18" r="10" fill="#fde9f2" />
-            <rect x="22" y="14" width="56" height="60" rx="8" fill="#fbdcec" />
-            <rect x="30" y="26" width="40" height="38" rx="4" fill="#ffffff" />
-            <rect x="36" y="12" width="6" height="12" rx="2" fill="#e83e93" />
-            <rect x="58" y="12" width="6" height="12" rx="2" fill="#e83e93" />
-            {[0, 1, 2].map((row) =>
-              [0, 1, 2, 3].map((col) => (
+        <div className="flex flex-col items-center gap-2 py-8 text-center">
+          <svg viewBox="0 0 100 100" className="mx-auto h-32 w-32" aria-hidden="true">
+            <rect x="18" y="20" width="64" height="60" rx="10" fill="#fdeef7" />
+            <rect x="26" y="32" width="48" height="40" rx="6" fill="#ffffff" />
+            <rect x="31" y="12" width="7" height="16" rx="3.5" fill="#ea6bb3" />
+            <rect x="62" y="12" width="7" height="16" rx="3.5" fill="#ea6bb3" />
+            {[0, 1].map((row) =>
+              [0, 1, 2].map((col) => (
                 <rect
                   key={`${row}-${col}`}
-                  x={35 + col * 8}
-                  y={34 + row * 8}
-                  width="5"
-                  height="5"
-                  rx="1"
+                  x={34 + col * 13}
+                  y={40 + row * 13}
+                  width="8"
+                  height="8"
+                  rx="2"
                   fill="#f6b8d9"
                 />
               ))
             )}
-            <circle cx="70" cy="66" r="14" fill="#ffffff" stroke="#e83e93" strokeWidth="2.5" />
-            <path d="M70 58 L70 66 L76 70" stroke="#e83e93" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+            <circle cx="50" cy="82" r="18" fill="#ffffff" stroke="#ea6bb3" strokeWidth="3.5" />
+            <path d="M50 72 L50 82 L58 87" stroke="#ea6bb3" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <p className="mt-1 text-sm font-medium text-gray-600 dark:text-ink-dark/70">No upcoming reviews</p>
           <p className="text-xs text-gray-400 dark:text-ink-dark/40">You're all caught up.</p>
