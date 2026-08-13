@@ -166,21 +166,6 @@ async function getRoundAssignmentDetail(requesterUser, roundId) {
  * rating rounded to the nearest whole number (1-5). Powers the
  * collapsible dashboard on the main 360° Feedback page.
  */
-async function getRatingDistribution(requesterUser) {
-  assertAdminTier(requesterUser);
-  const rows = await peerInsightModel.getOrgWideRatingSummary();
-
-  const buckets = [5, 4, 3, 2, 1].map((rating) => ({ rating, count: 0, employees: [] }));
-  rows.forEach((r) => {
-    const bucketRating = Math.min(5, Math.max(1, Math.round(r.avg_rating)));
-    const bucket = buckets.find((b) => b.rating === bucketRating);
-    bucket.count += 1;
-    bucket.employees.push({ id: r.id, first_name: r.first_name, last_name: r.last_name, avg_rating: r.avg_rating });
-  });
-
-  return { totalEmployees: rows.length, buckets };
-}
-
 /**
  * Org-wide rating distribution across every employee with submitted 360
  * feedback (any project, combined). Buckets by rounded average rating
@@ -200,6 +185,19 @@ async function getRatingDistribution(requesterUser) {
     totalEmployees: rows.length,
     buckets: buckets.map((b) => ({ rating: b.rating, count: b.employees.length, employees: b.employees })),
   };
+}
+
+/** Org-wide average rating per month, for the Rating Trend chart. */
+async function getRatingTrend(requesterUser) {
+  assertAdminTier(requesterUser);
+  return peerInsightModel.getMonthlyRatingTrend();
+}
+
+/** Top N employees by average rating, for the Top Rated Employees table. */
+async function getTopRatedEmployees(requesterUser, limit = 5) {
+  assertAdminTier(requesterUser);
+  const rows = await peerInsightModel.getOrgWideRatingSummary();
+  return rows.slice(0, limit);
 }
 
 /** HR nudges one specific pending reviewer - sends a notification + email, doesn't reveal WHO they're reviewing to anyone else. */
@@ -510,7 +508,8 @@ module.exports = {
   listSubjectsInRound,
   getRoundAssignmentDetail,
   getRatingDistribution,
-  getRatingDistribution,
+  getRatingTrend,
+  getTopRatedEmployees,
   remindReviewer,
   listMyAssignments,
   listAllMyPendingAssignments,

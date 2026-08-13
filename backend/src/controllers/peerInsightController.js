@@ -82,6 +82,16 @@ const getRatingDistribution = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { distribution } });
 });
 
+const getRatingTrend = asyncHandler(async (req, res) => {
+  const trend = await peerInsightService.getRatingTrend(req.user);
+  res.json({ success: true, data: { trend } });
+});
+
+const getTopRatedEmployees = asyncHandler(async (req, res) => {
+  const employees = await peerInsightService.getTopRatedEmployees(req.user, Number(req.query.limit) || 5);
+  res.json({ success: true, data: { employees } });
+});
+
 const exportRatingDistributionExcel = asyncHandler(async (req, res) => {
   const distribution = await peerInsightService.getRatingDistribution(req.user);
   const workbook = excelGenerator.buildRatingDistributionWorkbook(distribution);
@@ -213,6 +223,8 @@ module.exports = {
   getRoundAssignmentDetail,
   remindReviewer,
   getRatingDistribution,
+  getRatingTrend,
+  getTopRatedEmployees,
   exportRatingDistributionExcel,
   exportRatingDistributionPdf,
   listMyAssignments,

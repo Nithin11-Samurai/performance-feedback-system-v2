@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
   Plus,
   Users2,
@@ -55,6 +56,8 @@ function HrPeerInsightsView() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [groupFilter, setGroupFilter] = useState('');
   const [distribution, setDistribution] = useState(null);
+  const [ratingTrend, setRatingTrend] = useState(null);
+  const [topRated, setTopRated] = useState(null);
   const [expandedBucket, setExpandedBucket] = useState(null);
   const [bucketFilter, setBucketFilter] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -62,6 +65,8 @@ function HrPeerInsightsView() {
   useEffect(() => {
     if (activeTab === 'overview' && distribution === null) {
       peerInsightService.getRatingDistribution().then(setDistribution);
+      peerInsightService.getRatingTrend().then(setRatingTrend);
+      peerInsightService.getTopRatedEmployees(5).then(setTopRated);
     }
   }, [activeTab, distribution]);
 
@@ -155,6 +160,7 @@ function HrPeerInsightsView() {
       </div>
 
       {activeTab === 'overview' && (
+      <>
       <div className="card card-reviews">
         <h3 className="mb-1 flex items-center gap-2 font-display text-base font-semibold">
           <BarChart3 size={17} className="text-primary-600" /> 360° Feedback Rating Overview
@@ -263,6 +269,64 @@ function HrPeerInsightsView() {
             )}
           </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="card card-reviews">
+          <h3 className="mb-4 font-display text-base font-semibold">Rating Trend</h3>
+          {ratingTrend === null ? (
+            <Skeleton className="h-[220px] w-full" />
+          ) : ratingTrend.length === 0 ? (
+            <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              No completed reviews yet — the trend will appear here once feedback starts coming in.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={ratingTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f6c0df" />
+                <XAxis dataKey="month" fontSize={11} />
+                <YAxis domain={[0, 5]} fontSize={12} allowDecimals={false} />
+                <Tooltip />
+                <Line type="monotone" dataKey="avg_rating" stroke="#E83E93" strokeWidth={2} dot={{ fill: '#E83E93' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="card card-reviews">
+          <h3 className="mb-4 font-display text-base font-semibold">Top Rated Employees</h3>
+          {topRated === null ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
+            </div>
+          ) : topRated.length === 0 ? (
+            <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              No submitted feedback yet.
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-primary-100 text-left text-xs uppercase text-ink-light/40 dark:border-primary-900/50 dark:text-ink-dark/40">
+                  <th className="pb-2">Employee Name</th>
+                  <th className="pb-2 text-right">Average Rating</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topRated.map((e) => (
+                  <tr key={e.id} className="border-b border-primary-50 last:border-0 dark:border-primary-900/40">
+                    <td className="py-2.5 font-medium text-gray-900 dark:text-ink-dark">
+                      {e.first_name} {e.last_name}
+                    </td>
+                    <td className="py-2.5 text-right text-primary-600 dark:text-primary-300">{e.avg_rating}/5</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+      </>
       )}
 
       {activeTab === 'employee' && (

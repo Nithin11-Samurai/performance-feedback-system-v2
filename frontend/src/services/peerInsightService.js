@@ -17,6 +17,16 @@ export async function getRatingDistribution() {
   return data.data.distribution;
 }
 
+export async function getRatingTrend() {
+  const { data } = await api.get('/peer-insights/rating-trend');
+  return data.data.trend;
+}
+
+export async function getTopRatedEmployees(limit = 5) {
+  const { data } = await api.get('/peer-insights/top-rated-employees', { params: { limit } });
+  return data.data.employees;
+}
+
 export async function exportRatingDistributionExcel() {
   await downloadBlob('/peer-insights/rating-distribution/export/excel', '360-rating-distribution.xlsx');
 }

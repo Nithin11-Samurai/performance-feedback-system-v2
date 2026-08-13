@@ -225,6 +225,19 @@ async function getOrgWideRatingSummary() {
   return result.rows;
 }
 
+/** Average rating per calendar month, across all submitted 360 feedback org-wide - powers the Rating Trend chart. */
+async function getMonthlyRatingTrend() {
+  const result = await query(
+    `SELECT TO_CHAR(f.submitted_at, 'YYYY-MM') AS month,
+            ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
+     FROM peer_insight_feedback f
+     WHERE f.status = 'submitted' AND f.rating IS NOT NULL AND f.submitted_at IS NOT NULL
+     GROUP BY TO_CHAR(f.submitted_at, 'YYYY-MM')
+     ORDER BY month ASC`
+  );
+  return result.rows;
+}
+
 
 async function listSubjectsInRound(roundId) {
   const result = await query(
@@ -433,6 +446,7 @@ module.exports = {
   listSubjectsInRound,
   listAssignmentsWithStatusForRound,
   getOrgWideRatingSummary,
+  getMonthlyRatingTrend,
   upsertSummary,
   findSummary,
   releaseSummary,

@@ -68,6 +68,8 @@ router.get('/employees/search', adminOnly, peerInsightController.searchSubjects)
 router.get('/rating-distribution', adminOnly, peerInsightController.getRatingDistribution);
 router.get('/rating-distribution/export/excel', adminOnly, peerInsightController.exportRatingDistributionExcel);
 router.get('/rating-distribution/export/pdf', adminOnly, peerInsightController.exportRatingDistributionPdf);
+router.get('/rating-trend', adminOnly, peerInsightController.getRatingTrend);
+router.get('/top-rated-employees', adminOnly, peerInsightController.getTopRatedEmployees);
 router.get('/employees/:subjectId/cross-project', adminOnly, peerInsightController.getCrossProjectBreakdown);
 router.get('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.getOverallSummary);
 router.patch('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.saveOverallSummary);
