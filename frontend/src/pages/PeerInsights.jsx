@@ -32,6 +32,23 @@ import Badge from '../components/Badge';
 import Skeleton from '../components/Skeleton';
 import SixtyFeedbackForm from '../components/SixtyFeedbackForm';
 
+// API responses can be temporarily empty/undefined during cold starts, cached 304 responses,
+// or partial failures. Keep list rendering stable instead of allowing React to crash on .length/.map().
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const normalizeDistribution = (value) => {
+  const distribution = value && typeof value === 'object' ? value : {};
+  return {
+    totalEmployees: Number.isFinite(Number(distribution.totalEmployees)) ? Number(distribution.totalEmployees) : 0,
+    buckets: asArray(distribution.buckets).map((bucket) => ({
+      ...bucket,
+      rating: bucket?.rating,
+      count: Number.isFinite(Number(bucket?.count)) ? Number(bucket.count) : 0,
+      employees: asArray(bucket?.employees),
+    })),
+  };
+};
+
 export default function PeerInsights() {
   usePageTitle('360° Feedback');
   const { user } = useAuth();
@@ -86,15 +103,15 @@ function HrPeerInsightsView() {
     if (activeTab !== 'overview') return;
     peerInsightService
       .getRatingDistribution(overviewProjectFilter || undefined)
-      .then(setDistribution)
+      .then((data) => setDistribution(normalizeDistribution(data)))
       .catch(() => setDistribution({ totalEmployees: 0, buckets: [] }));
     peerInsightService
       .getRatingTrend(overviewProjectFilter || undefined)
-      .then(setRatingTrend)
+      .then((data) => setRatingTrend(asArray(data)))
       .catch(() => setRatingTrend([]));
     peerInsightService
       .getTopRatedEmployees(5, overviewProjectFilter || undefined)
-      .then(setTopRated)
+      .then((data) => setTopRated(asArray(data)))
       .catch(() => setTopRated([]));
   }, [activeTab, overviewProjectFilter]);
 
@@ -102,7 +119,7 @@ function HrPeerInsightsView() {
     if (activeTab === 'overview' && pendingProjects === null) {
       peerInsightService
         .getProjectsWithPendingFeedback()
-        .then(setPendingProjects)
+        .then((data) => setPendingProjects(asArray(data)))
         .catch(() => setPendingProjects([]));
     }
   }, [activeTab, pendingProjects]);
@@ -113,7 +130,7 @@ function HrPeerInsightsView() {
     try {
       const result = await peerInsightService.remindAllPendingForRound(roundId);
       showToast(result.message);
-      peerInsightService.getProjectsWithPendingFeedback().then(setPendingProjects);
+      peerInsightService.getProjectsWithPendingFeedback().then((data) => setPendingProjects(asArray(data)));
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to send reminders.', 'error');
     } finally {
@@ -129,7 +146,7 @@ function HrPeerInsightsView() {
     const timer = setTimeout(() => {
       peerInsightService
         .searchSubjects(searchTerm.trim())
-        .then(setSearchResults)
+        .then((data) => setSearchResults(asArray(data)))
         .catch(() => setSearchResults([]));
     }, 300);
     return () => clearTimeout(timer);
@@ -137,7 +154,7 @@ function HrPeerInsightsView() {
 
   async function loadGroups() {
     const data = await peerInsightService.listGroups();
-    setGroups(data);
+    setGroups(asArray(data));
   }
 
   useEffect(() => {
@@ -148,7 +165,7 @@ function HrPeerInsightsView() {
     try {
       await peerInsightService.deleteGroup(group.id);
       showToast('Project group deleted');
-      setGroups((prev) => prev.filter((g) => g.id !== group.id));
+      setGroups((prev) => asArray(prev).filter((g) => g.id !== group.id));
       if (selectedGroup?.id === group.id) setSelectedGroup(null);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to delete group.', 'error');
@@ -277,17 +294,18 @@ function HrPeerInsightsView() {
 
                 {expandedBucket !== null &&
                   (() => {
-                    const bucket = distribution.buckets.find((b) => b.rating === expandedBucket);
-                    const filtered = bucket.employees
-                      .filter((e) => `${e.first_name} ${e.last_name}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
-                      .sort((a, b) => a.first_name.localeCompare(b.first_name));
+                    const bucket = asArray(distribution?.buckets).find((b) => b.rating === expandedBucket);
+                    const bucketEmployees = asArray(bucket?.employees);
+                    const filtered = bucketEmployees
+                      .filter((e) => `${e.first_name || ''} ${e.last_name || ''}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
+                      .sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
                     return (
                       <div className="mt-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50">
-                        {bucket.employees.length === 0 ? (
+                        {bucketEmployees.length === 0 ? (
                           <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
                         ) : (
                           <>
-                            {bucket.employees.length > 8 && (
+                            {bucketEmployees.length > 8 && (
                               <input
                                 value={bucketFilter}
                                 onChange={(e) => setBucketFilter(e.target.value)}
@@ -604,7 +622,7 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   useEffect(() => {
-    peerInsightService.getRawFeedback(roundId, subjectId).then(setRawFeedback);
+    peerInsightService.getRawFeedback(roundId, subjectId).then((data) => setRawFeedback(asArray(data))).catch(() => setRawFeedback([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundId, subjectId]);
 
@@ -647,10 +665,10 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                   <div className="space-y-4 px-3 pb-4 text-sm">
                     {schema &&
                       f.category_scores &&
-                      schema.categories.map((c, i) => {
+                      asArray(schema?.categories).map((c, i) => {
                         const entry = f.category_scores[c.key];
                         if (!entry?.score) return null;
-                        const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
+                        const levelLabel = asArray(schema?.likertScale).find((l) => l.value === entry.score)?.label || entry.score;
                         return (
                           <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
                             <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
@@ -701,14 +719,20 @@ function EmployeeCrossProjectView({ employee, onBack }) {
   }
 
   useEffect(() => {
-    peerInsightService.getFeedbackFormSchema().then(setSchema);
+    peerInsightService.getFeedbackFormSchema().then((data) => setSchema(data || { categories: [], likertScale: [] })).catch(() => setSchema({ categories: [], likertScale: [] }));
     Promise.all([
       peerInsightService.getCrossProjectBreakdown(employee.id),
       peerInsightService.getOverallSummary(employee.id),
     ]).then(([breakdownData, summary]) => {
-      setData(breakdownData);
-      setOverallSummary(summary);
+      const safeBreakdown = breakdownData && typeof breakdownData === 'object'
+        ? { ...breakdownData, projects: asArray(breakdownData.projects), overall: breakdownData.overall || null }
+        : { projects: [], overall: null };
+      setData(safeBreakdown);
+      setOverallSummary(summary || null);
       setSummaryText(summary?.summary_text || '');
+    }).catch(() => {
+      setData({ projects: [], overall: null });
+      setOverallSummary(null);
     });
   }, [employee.id]);
 
@@ -780,13 +804,13 @@ function EmployeeCrossProjectView({ employee, onBack }) {
 
       {data === null ? (
         <Skeleton className="h-40 w-full" />
-      ) : data.projects.length === 0 ? (
+      ) : asArray(data?.projects).length === 0 ? (
         <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
           No submitted 360° Feedback found for this employee yet.
         </p>
       ) : (
         <>
-          {data.projects.map((p) => {
+          {asArray(data?.projects).map((p) => {
             const isExpanded = expandedProjects.has(p.roundId);
             return (
               <div key={p.roundId} className="card card-reviews">
@@ -823,8 +847,8 @@ function EmployeeCrossProjectView({ employee, onBack }) {
           <div className="card card-reviews">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="flex items-center gap-2 font-display text-sm font-semibold">
-                <Sparkles size={15} /> Overall Summary — across all {data.projects.length} project
-                {data.projects.length === 1 ? '' : 's'}
+                <Sparkles size={15} /> Overall Summary — across all {asArray(data?.projects).length} project
+                {asArray(data?.projects).length === 1 ? '' : 's'}
               </h4>
               <button
                 onClick={handleGenerateSummary}
@@ -964,11 +988,11 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   const [roundEndDateInput, setRoundEndDateInput] = useState('');
   const [editNameInput, setEditNameInput] = useState(group.name);
   const [editDescriptionInput, setEditDescriptionInput] = useState(group.description || '');
-  const members = members || [];
+  const members = asArray(group?.members);
 
   async function loadRounds() {
     const data = await peerInsightService.listRoundsForGroup(group.id);
-    setRounds(data);
+    setRounds(asArray(data));
   }
 
   useEffect(() => {
@@ -1664,7 +1688,7 @@ function EmployeePeerInsightsView() {
   async function loadAssignments() {
     try {
       const data = await peerInsightService.listAllMyPendingAssignments();
-      setAssignments(data);
+      setAssignments(asArray(data));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load.');
     }
@@ -1674,7 +1698,7 @@ function EmployeePeerInsightsView() {
     loadAssignments();
     peerInsightService
       .listMyReleasedSummaries()
-      .then(setSummaries)
+      .then((data) => setSummaries(asArray(data)))
       .catch(() => setSummaries([]));
     peerInsightService
       .getMyReleasedOverallSummary()
@@ -1696,7 +1720,7 @@ function EmployeePeerInsightsView() {
     try {
       await peerInsightService.submitFeedback(assignment.id);
       showToast('Submitted anonymously — thank you');
-      setAssignments((prev) => prev.filter((a) => a.id !== assignment.id));
+      setAssignments((prev) => asArray(prev).filter((a) => a.id !== assignment.id));
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to submit.', 'error');
     }
