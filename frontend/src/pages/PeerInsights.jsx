@@ -551,7 +551,7 @@ function HrPeerInsightsView() {
                         ))}
                       </div>
                       <span className="text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
-                        {g.members.length} member{g.members.length === 1 ? '' : 's'}
+                        {(g.members || []).length} member{(g.members || []).length === 1 ? '' : 's'}
                       </span>
                     </div>
                   </div>
@@ -964,6 +964,7 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   const [roundEndDateInput, setRoundEndDateInput] = useState('');
   const [editNameInput, setEditNameInput] = useState(group.name);
   const [editDescriptionInput, setEditDescriptionInput] = useState(group.description || '');
+  const members = members || [];
 
   async function loadRounds() {
     const data = await peerInsightService.listRoundsForGroup(group.id);
@@ -1062,14 +1063,14 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
           <button
             className="btn-primary"
             onClick={() => setStartRoundOpen(true)}
-            disabled={starting || group.members.length < 2}
+            disabled={starting || members.length < 2}
           >
             <Zap size={16} /> Start 360° Feedback Round
           </button>
         </div>
 
         <div className="mb-2 flex items-center justify-between">
-          <h4 className="text-sm font-semibold">Members ({group.members.length})</h4>
+          <h4 className="text-sm font-semibold">Members ({members.length})</h4>
           <div className="flex items-center gap-3">
             {editingMembers && (
               <button onClick={() => setAddPersonOpen(true)} className="text-xs text-primary-600 hover:underline dark:text-primary-300">
@@ -1085,7 +1086,7 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {group.members.map((m) => (
+          {members.map((m) => (
             <span key={m.id} className="flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs dark:bg-primary-900/40">
               {m.first_name} {m.last_name}
               {editingMembers && (
@@ -1144,7 +1145,7 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
       </div>
 
       <Modal open={addPersonOpen} onClose={() => setAddPersonOpen(false)} title="Add member">
-        <EmployeePicker onSelect={handleAddMember} placeholder="Search employee…" excludeIds={group.members.map((m) => m.id)} />
+        <EmployeePicker onSelect={handleAddMember} placeholder="Search employee…" excludeIds={members.map((m) => m.id)} />
       </Modal>
 
       <Modal open={startRoundOpen} onClose={() => setStartRoundOpen(false)} title="Start 360° Feedback Round">

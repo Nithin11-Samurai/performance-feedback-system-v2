@@ -45,7 +45,8 @@ async function updateGroup(requesterUser, groupId, { name, description }) {
   if (name !== undefined && !name.trim()) throw AppError.badRequest('Group name cannot be empty');
   const group = await peerInsightModel.updateGroup(groupId, { name: name?.trim(), description });
   if (!group) throw AppError.notFound('Project group not found');
-  return group;
+  const members = await peerInsightModel.listMembers(groupId);
+  return { ...group, members };
 }
 
 async function listGroups(requesterUser) {
