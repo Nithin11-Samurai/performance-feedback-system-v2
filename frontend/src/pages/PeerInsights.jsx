@@ -58,6 +58,7 @@ function HrPeerInsightsView() {
   const [distribution, setDistribution] = useState(null);
   const [ratingTrend, setRatingTrend] = useState(null);
   const [topRated, setTopRated] = useState(null);
+  const [pendingProjects, setPendingProjects] = useState(null);
   const [expandedBucket, setExpandedBucket] = useState(null);
   const [bucketFilter, setBucketFilter] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -67,8 +68,24 @@ function HrPeerInsightsView() {
       peerInsightService.getRatingDistribution().then(setDistribution);
       peerInsightService.getRatingTrend().then(setRatingTrend);
       peerInsightService.getTopRatedEmployees(5).then(setTopRated);
+      peerInsightService.getProjectsWithPendingFeedback().then(setPendingProjects);
     }
   }, [activeTab, distribution]);
+
+  /** Jumps straight into the round where the existing remind UI already lives, from the Overview tab. */
+  async function handleGoToPendingProject(groupId, roundId) {
+    try {
+      const [fullGroup, rounds] = await Promise.all([
+        peerInsightService.getGroup(groupId),
+        peerInsightService.listRoundsForGroup(groupId),
+      ]);
+      const fullRound = rounds.find((r) => r.id === roundId);
+      setSelectedGroup(fullGroup);
+      setSelectedRound(fullRound || rounds[0]);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to open project.', 'error');
+    }
+  }
 
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
@@ -325,6 +342,47 @@ function HrPeerInsightsView() {
             </table>
           )}
         </div>
+      </div>
+
+      <div className="card card-reviews">
+        <h3 className="mb-4 flex items-center gap-2 font-display text-base font-semibold">
+          <AlertCircle size={17} className="text-primary-600" /> Projects with Pending Feedback
+        </h3>
+        {pendingProjects === null ? (
+          <div className="space-y-2">
+            {[...Array(2)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : pendingProjects.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+            No active rounds with pending feedback — everything's caught up.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {pendingProjects.map((p) => (
+              <li
+                key={p.round_id}
+                className="flex items-center justify-between rounded-xl border border-primary-50 p-3 dark:border-primary-900/50"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-ink-dark">
+                    {p.group_name} <span className="text-ink-light/40 dark:text-ink-dark/40">— {p.round_name}</span>
+                  </p>
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                    {p.pending_count} pending{p.end_date && ` · Ends ${new Date(p.end_date).toLocaleDateString()}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleGoToPendingProject(p.group_id, p.round_id)}
+                  className="btn-secondary text-xs"
+                >
+                  View &amp; remind
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       </>
       )}

@@ -40,6 +40,14 @@ async function createGroup(requesterUser, { name, description, memberIds }) {
   return group;
 }
 
+async function updateGroup(requesterUser, groupId, { name, description }) {
+  assertAdminTier(requesterUser);
+  if (name !== undefined && !name.trim()) throw AppError.badRequest('Group name cannot be empty');
+  const group = await peerInsightModel.updateGroup(groupId, { name: name?.trim(), description });
+  if (!group) throw AppError.notFound('Project group not found');
+  return group;
+}
+
 async function listGroups(requesterUser) {
   assertAdminTier(requesterUser);
   const groups = await peerInsightModel.listGroups();
@@ -82,7 +90,7 @@ async function deleteGroup(requesterUser, groupId) {
  * typically every 6 months, but HR triggers it manually rather than a
  * rigid automatic schedule (gives HR control over timing).
  */
-async function startRoundWithAssignments(requesterUser, groupId, roundName) {
+async function startRoundWithAssignments(requesterUser, groupId, roundName, endDate) {
   assertAdminTier(requesterUser);
 
   const group = await peerInsightModel.findGroupById(groupId);
@@ -93,10 +101,19 @@ async function startRoundWithAssignments(requesterUser, groupId, roundName) {
     throw AppError.badRequest('A project group needs at least 2 members to run a 360° Feedback round');
   }
 
+  // Auto-name "Round N" when HR doesn't type a custom name, so rounds
+  // stay distinguishable from each other without extra effort.
+  let name = roundName?.trim();
+  if (!name) {
+    const existingCount = await peerInsightModel.countRoundsForGroup(groupId);
+    name = `Round ${existingCount + 1}`;
+  }
+
   const round = await peerInsightModel.createRound({
     groupId,
-    name: roundName || `${group.name} — 360° Feedback`,
+    name,
     startedBy: requesterUser.id,
+    endDate,
   });
 
   // Full round-robin: everyone reviews everyone else.
@@ -144,6 +161,20 @@ async function closeRound(requesterUser, roundId) {
   return round;
 }
 
+async function reactivateRound(requesterUser, roundId) {
+  assertAdminTier(requesterUser);
+  const round = await peerInsightModel.reactivateRound(roundId);
+  if (!round) throw AppError.notFound('Round not found');
+  return round;
+}
+
+async function updateRound(requesterUser, roundId, { name, startedAt, endDate }) {
+  assertAdminTier(requesterUser);
+  const round = await peerInsightModel.updateRound(roundId, { name, startedAt, endDate });
+  if (!round) throw AppError.notFound('Round not found');
+  return round;
+}
+
 async function getCompletionSummary(requesterUser, roundId) {
   assertAdminTier(requesterUser);
   return peerInsightModel.getCompletionSummary(roundId);
@@ -185,6 +216,12 @@ async function getRatingDistribution(requesterUser) {
     totalEmployees: rows.length,
     buckets: buckets.map((b) => ({ rating: b.rating, count: b.employees.length, employees: b.employees })),
   };
+}
+
+/** Every project with pending 360 feedback in its active round, for the Overview tab's pending-projects widget. */
+async function getProjectsWithPendingFeedback(requesterUser) {
+  assertAdminTier(requesterUser);
+  return peerInsightModel.listActiveRoundsWithPending();
 }
 
 /** Org-wide average rating per month, for the Rating Trend chart. */
@@ -496,6 +533,7 @@ async function getMyReleasedOverallSummary(requesterUser) {
 
 module.exports = {
   createGroup,
+  updateGroup,
   listGroups,
   getGroup,
   addMember,
@@ -504,11 +542,14 @@ module.exports = {
   startRoundWithAssignments,
   listRoundsForGroup,
   closeRound,
+  reactivateRound,
+  updateRound,
   getCompletionSummary,
   listSubjectsInRound,
   getRoundAssignmentDetail,
   getRatingDistribution,
   getRatingTrend,
+  getProjectsWithPendingFeedback,
   getTopRatedEmployees,
   remindReviewer,
   listMyAssignments,

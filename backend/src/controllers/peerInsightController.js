@@ -107,6 +107,11 @@ const getRatingTrend = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { trend } });
 });
 
+const getProjectsWithPendingFeedback = asyncHandler(async (req, res) => {
+  const projects = await peerInsightService.getProjectsWithPendingFeedback(req.user);
+  res.json({ success: true, data: { projects } });
+});
+
 const getTopRatedEmployees = asyncHandler(async (req, res) => {
   const employees = await peerInsightService.getTopRatedEmployees(req.user, Number(req.query.limit) || 5);
   res.json({ success: true, data: { employees } });
@@ -247,6 +252,7 @@ module.exports = {
   remindReviewer,
   getRatingDistribution,
   getRatingTrend,
+  getProjectsWithPendingFeedback,
   getTopRatedEmployees,
   exportRatingDistributionExcel,
   exportRatingDistributionPdf,

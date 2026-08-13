@@ -14,6 +14,14 @@ async function createGroup({ name, description, createdBy }) {
   return result.rows[0];
 }
 
+async function updateGroup(id, { name, description }) {
+  const result = await query(
+    `UPDATE project_groups SET name = COALESCE($2, name), description = $3 WHERE id = $1 RETURNING *`,
+    [id, name || null, description ?? null]
+  );
+  return result.rows[0] || null;
+}
+
 async function listGroups() {
   const result = await query(
     `SELECT g.*, COUNT(m.id)::int AS member_count
@@ -78,12 +86,20 @@ async function listGroupsForMember(userId) {
 
 // --- Rounds ---
 
-async function createRound({ groupId, name, startedBy }) {
+async function createRound({ groupId, name, startedBy, endDate }) {
   const result = await query(
-    'INSERT INTO peer_insight_rounds (project_group_id, name, started_by) VALUES ($1, $2, $3) RETURNING *',
-    [groupId, name, startedBy]
+    'INSERT INTO peer_insight_rounds (project_group_id, name, started_by, end_date) VALUES ($1, $2, $3, $4) RETURNING *',
+    [groupId, name, startedBy, endDate || null]
   );
   return result.rows[0];
+}
+
+/** How many rounds a group already has - used to auto-name new ones "Round N". */
+async function countRoundsForGroup(groupId) {
+  const result = await query('SELECT COUNT(*)::int AS count FROM peer_insight_rounds WHERE project_group_id = $1', [
+    groupId,
+  ]);
+  return result.rows[0].count;
 }
 
 async function listRoundsForGroup(groupId) {
@@ -103,6 +119,27 @@ async function closeRound(id) {
   const result = await query(
     `UPDATE peer_insight_rounds SET status = 'closed', closed_at = NOW() WHERE id = $1 RETURNING *`,
     [id]
+  );
+  return result.rows[0] || null;
+}
+
+/** Reopens a closed round without losing its history - existing feedback stays exactly as it was. */
+async function reactivateRound(id) {
+  const result = await query(
+    `UPDATE peer_insight_rounds SET status = 'active', closed_at = NULL WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+async function updateRound(id, { name, startedAt, endDate }) {
+  const result = await query(
+    `UPDATE peer_insight_rounds
+     SET name = COALESCE($2, name),
+         started_at = COALESCE($3, started_at),
+         end_date = COALESCE($4, end_date)
+     WHERE id = $1 RETURNING *`,
+    [id, name || null, startedAt || null, endDate || null]
   );
   return result.rows[0] || null;
 }
@@ -208,6 +245,22 @@ async function getCompletionSummary(roundId) {
   const result = await query(
     `SELECT status, COUNT(*)::int AS count FROM peer_insight_feedback WHERE round_id = $1 GROUP BY status`,
     [roundId]
+  );
+  return result.rows;
+}
+
+/** Every active round with at least one pending assignment, with its project group - powers the Overview tab's "projects with pending feedback" widget. */
+async function listActiveRoundsWithPending() {
+  const result = await query(
+    `SELECT r.id AS round_id, r.name AS round_name, r.end_date,
+            g.id AS group_id, g.name AS group_name,
+            COUNT(f.id)::int AS pending_count
+     FROM peer_insight_rounds r
+     JOIN project_groups g ON g.id = r.project_group_id
+     JOIN peer_insight_feedback f ON f.round_id = r.id AND f.status = 'pending'
+     WHERE r.status = 'active'
+     GROUP BY r.id, r.name, r.end_date, g.id, g.name
+     ORDER BY pending_count DESC`
   );
   return result.rows;
 }
@@ -423,6 +476,7 @@ async function findReleasedOverallSummaryForEmployee(employeeId) {
 
 module.exports = {
   createGroup,
+  updateGroup,
   listGroups,
   findGroupById,
   deleteGroup,
@@ -434,6 +488,9 @@ module.exports = {
   listRoundsForGroup,
   findRoundById,
   closeRound,
+  reactivateRound,
+  updateRound,
+  countRoundsForGroup,
   listAllRounds,
   bulkCreateAssignments,
   listAssignmentsForReviewer,
@@ -446,6 +503,7 @@ module.exports = {
   listSubjectsInRound,
   listAssignmentsWithStatusForRound,
   getOrgWideRatingSummary,
+  listActiveRoundsWithPending,
   getMonthlyRatingTrend,
   upsertSummary,
   findSummary,

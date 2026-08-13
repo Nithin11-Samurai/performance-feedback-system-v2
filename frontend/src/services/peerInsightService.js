@@ -22,6 +22,11 @@ export async function getRatingTrend() {
   return data.data.trend;
 }
 
+export async function getProjectsWithPendingFeedback() {
+  const { data } = await api.get('/peer-insights/projects-with-pending');
+  return data.data.projects;
+}
+
 export async function getTopRatedEmployees(limit = 5) {
   const { data } = await api.get('/peer-insights/top-rated-employees', { params: { limit } });
   return data.data.employees;
