@@ -840,6 +840,12 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   const [addPersonOpen, setAddPersonOpen] = useState(false);
   const [editingMembers, setEditingMembers] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(null);
+  const [startRoundOpen, setStartRoundOpen] = useState(false);
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
+  const [roundNameInput, setRoundNameInput] = useState('');
+  const [roundEndDateInput, setRoundEndDateInput] = useState('');
+  const [editNameInput, setEditNameInput] = useState(group.name);
+  const [editDescriptionInput, setEditDescriptionInput] = useState(group.description || '');
 
   async function loadRounds() {
     const data = await peerInsightService.listRoundsForGroup(group.id);
@@ -854,14 +860,35 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   async function handleStartRound() {
     setStarting(true);
     try {
-      const round = await peerInsightService.startRound(group.id);
+      const round = await peerInsightService.startRound(
+        group.id,
+        roundNameInput.trim() || undefined,
+        roundEndDateInput || undefined
+      );
       showToast('360° Feedback round started, reviewers notified');
+      setStartRoundOpen(false);
+      setRoundNameInput('');
+      setRoundEndDateInput('');
       loadRounds();
       onOpenRound(round);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to start round.', 'error');
     } finally {
       setStarting(false);
+    }
+  }
+
+  async function handleUpdateProject() {
+    try {
+      const updated = await peerInsightService.updateGroup(group.id, {
+        name: editNameInput.trim(),
+        description: editDescriptionInput.trim(),
+      });
+      onGroupUpdated(updated);
+      showToast('Project updated');
+      setEditProjectOpen(false);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to update project.', 'error');
     }
   }
 
@@ -899,11 +926,27 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
       <div className="card card-reviews">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-lg font-semibold">{group.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-lg font-semibold">{group.name}</h3>
+              <button
+                onClick={() => {
+                  setEditNameInput(group.name);
+                  setEditDescriptionInput(group.description || '');
+                  setEditProjectOpen(true);
+                }}
+                className="text-xs text-primary-600 hover:underline dark:text-primary-300"
+              >
+                Edit
+              </button>
+            </div>
             {group.description && <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">{group.description}</p>}
           </div>
-          <button className="btn-primary" onClick={handleStartRound} disabled={starting || group.members.length < 2}>
-            <Zap size={16} /> {starting ? 'Starting…' : 'Start 360° Feedback Round'}
+          <button
+            className="btn-primary"
+            onClick={() => setStartRoundOpen(true)}
+            disabled={starting || group.members.length < 2}
+          >
+            <Zap size={16} /> Start 360° Feedback Round
           </button>
         </div>
 
@@ -967,7 +1010,13 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
                   onClick={() => onOpenRound(r)}
                   className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-primary-50 dark:hover:bg-primary-900/40"
                 >
-                  <span>{r.name}</span>
+                  <span>
+                    {r.name}
+                    <span className="ml-2 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                      Started {new Date(r.started_at).toLocaleDateString()}
+                      {r.end_date && ` · Ends ${new Date(r.end_date).toLocaleDateString()}`}
+                    </span>
+                  </span>
                   <Badge tone={r.status === 'active' ? 'success' : 'neutral'}>{r.status}</Badge>
                 </button>
               </li>
@@ -979,12 +1028,76 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
       <Modal open={addPersonOpen} onClose={() => setAddPersonOpen(false)} title="Add member">
         <EmployeePicker onSelect={handleAddMember} placeholder="Search employee…" excludeIds={group.members.map((m) => m.id)} />
       </Modal>
+
+      <Modal open={startRoundOpen} onClose={() => setStartRoundOpen(false)} title="Start 360° Feedback Round">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Round name (optional)</label>
+            <input
+              value={roundNameInput}
+              onChange={(e) => setRoundNameInput(e.target.value)}
+              placeholder={`Round ${(rounds?.length || 0) + 1}`}
+              className="input"
+            />
+            <p className="mt-1 text-xs text-ink-light/50 dark:text-ink-dark/50">
+              Leave blank to auto-name it "Round {(rounds?.length || 0) + 1}".
+            </p>
+          </div>
+          <div>
+            <label className="label">End date (optional)</label>
+            <input
+              type="date"
+              value={roundEndDateInput}
+              onChange={(e) => setRoundEndDateInput(e.target.value)}
+              className="input"
+            />
+            <p className="mt-1 text-xs text-ink-light/50 dark:text-ink-dark/50">
+              Reviewers get an automatic reminder 3 days before this date if they haven't submitted yet.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button className="btn-secondary text-sm" onClick={() => setStartRoundOpen(false)}>
+              Cancel
+            </button>
+            <button className="btn-primary text-sm" onClick={handleStartRound} disabled={starting}>
+              <Zap size={14} /> {starting ? 'Starting…' : 'Start round'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={editProjectOpen} onClose={() => setEditProjectOpen(false)} title="Edit project">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Project name</label>
+            <input value={editNameInput} onChange={(e) => setEditNameInput(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="label">Description</label>
+            <textarea
+              value={editDescriptionInput}
+              onChange={(e) => setEditDescriptionInput(e.target.value)}
+              rows={3}
+              className="input"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button className="btn-secondary text-sm" onClick={() => setEditProjectOpen(false)}>
+              Cancel
+            </button>
+            <button className="btn-primary text-sm" onClick={handleUpdateProject} disabled={!editNameInput.trim()}>
+              Save
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
 
-function RoundDetail({ round, group, onBack }) {
+function RoundDetail({ round: initialRound, group, onBack }) {
   const { showToast } = useToast();
+  const [round, setRound] = useState(initialRound);
   const [completion, setCompletion] = useState(null);
   const [subjects, setSubjects] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -992,6 +1105,9 @@ function RoundDetail({ round, group, onBack }) {
   const [assignmentDetail, setAssignmentDetail] = useState(null);
   const [showStatusDetail, setShowStatusDetail] = useState(false);
   const [reminding, setReminding] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editNameInput, setEditNameInput] = useState(round.name);
+  const [editEndDateInput, setEditEndDateInput] = useState(round.end_date ? round.end_date.slice(0, 10) : '');
 
   async function load() {
     const [comp, subs, detail] = await Promise.all([
@@ -1023,12 +1139,36 @@ function RoundDetail({ round, group, onBack }) {
 
   async function handleClose() {
     try {
-      await peerInsightService.closeRound(round.id);
+      const updated = await peerInsightService.closeRound(round.id);
+      setRound(updated);
       showToast('Round closed');
       setConfirmClose(false);
-      onBack();
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to close round.', 'error');
+    }
+  }
+
+  async function handleReactivate() {
+    try {
+      const updated = await peerInsightService.reactivateRound(round.id);
+      setRound(updated);
+      showToast('Round reactivated');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to reactivate round.', 'error');
+    }
+  }
+
+  async function handleUpdateRound() {
+    try {
+      const updated = await peerInsightService.updateRound(round.id, {
+        name: editNameInput.trim(),
+        endDate: editEndDateInput || null,
+      });
+      setRound(updated);
+      showToast('Round updated');
+      setEditOpen(false);
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to update round.', 'error');
     }
   }
 
@@ -1046,17 +1186,37 @@ function RoundDetail({ round, group, onBack }) {
       </button>
 
       <div className="card card-reviews">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display text-lg font-semibold">{round.name}</h3>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h3 className="font-display text-lg font-semibold">{round.name}</h3>
+            <button
+              onClick={() => {
+                setEditNameInput(round.name);
+                setEditEndDateInput(round.end_date ? round.end_date.slice(0, 10) : '');
+                setEditOpen(true);
+              }}
+              className="text-xs text-primary-600 hover:underline dark:text-primary-300"
+            >
+              Edit
+            </button>
+          </div>
           <div className="flex items-center gap-2">
             <Badge tone={round.status === 'active' ? 'success' : 'neutral'}>{round.status}</Badge>
-            {round.status === 'active' && (
+            {round.status === 'active' ? (
               <button className="btn-secondary text-xs" onClick={() => setConfirmClose(true)}>
                 <Lock size={13} /> Close round
+              </button>
+            ) : (
+              <button className="btn-secondary text-xs" onClick={handleReactivate}>
+                <Zap size={13} /> Reactivate round
               </button>
             )}
           </div>
         </div>
+        <p className="mb-4 text-xs text-ink-light/50 dark:text-ink-dark/50">
+          Started {new Date(round.started_at).toLocaleDateString()}
+          {round.end_date && ` · Ends ${new Date(round.end_date).toLocaleDateString()}`}
+        </p>
         <button
           onClick={() => setShowStatusDetail((v) => !v)}
           className="flex items-center gap-4 text-sm hover:opacity-80"
@@ -1125,9 +1285,35 @@ function RoundDetail({ round, group, onBack }) {
         onClose={() => setConfirmClose(false)}
         onConfirm={handleClose}
         title="Close this round"
-        message="Reviewers will no longer be able to submit feedback for this round. You can still curate and release summaries afterward."
+        message="Reviewers will no longer be able to submit feedback for this round. You can still curate and release summaries afterward, and reactivate the round later if needed."
         confirmLabel="Close round"
       />
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit round">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Round name</label>
+            <input value={editNameInput} onChange={(e) => setEditNameInput(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="label">End date</label>
+            <input
+              type="date"
+              value={editEndDateInput}
+              onChange={(e) => setEditEndDateInput(e.target.value)}
+              className="input"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button className="btn-secondary text-sm" onClick={() => setEditOpen(false)}>
+              Cancel
+            </button>
+            <button className="btn-primary text-sm" onClick={handleUpdateRound} disabled={!editNameInput.trim()}>
+              Save
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

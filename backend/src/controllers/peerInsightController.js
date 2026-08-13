@@ -36,6 +36,11 @@ const removeMember = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Member removed' });
 });
 
+const updateGroup = asyncHandler(async (req, res) => {
+  const group = await peerInsightService.updateGroup(req.user, req.params.groupId, req.body);
+  res.json({ success: true, message: 'Project group updated', data: { group } });
+});
+
 const deleteGroup = asyncHandler(async (req, res) => {
   await peerInsightService.deleteGroup(req.user, req.params.groupId);
   res.json({ success: true, message: 'Project group deleted' });
@@ -43,7 +48,12 @@ const deleteGroup = asyncHandler(async (req, res) => {
 
 // --- Rounds (Quick Action) ---
 const startRound = asyncHandler(async (req, res) => {
-  const round = await peerInsightService.startRoundWithAssignments(req.user, req.params.groupId, req.body.name);
+  const round = await peerInsightService.startRoundWithAssignments(
+    req.user,
+    req.params.groupId,
+    req.body.name,
+    req.body.endDate
+  );
   res.status(201).json({ success: true, message: 'Peer Insights round started — reviewers notified', data: { round } });
 });
 
@@ -55,6 +65,16 @@ const listRoundsForGroup = asyncHandler(async (req, res) => {
 const closeRound = asyncHandler(async (req, res) => {
   const round = await peerInsightService.closeRound(req.user, req.params.roundId);
   res.json({ success: true, message: 'Round closed', data: { round } });
+});
+
+const reactivateRound = asyncHandler(async (req, res) => {
+  const round = await peerInsightService.reactivateRound(req.user, req.params.roundId);
+  res.json({ success: true, message: 'Round reactivated', data: { round } });
+});
+
+const updateRound = asyncHandler(async (req, res) => {
+  const round = await peerInsightService.updateRound(req.user, req.params.roundId, req.body);
+  res.json({ success: true, message: 'Round updated', data: { round } });
 });
 
 const getCompletionSummary = asyncHandler(async (req, res) => {
@@ -214,10 +234,13 @@ module.exports = {
   getGroup,
   addMember,
   removeMember,
+  updateGroup,
   deleteGroup,
   startRound,
   listRoundsForGroup,
   closeRound,
+  reactivateRound,
+  updateRound,
   getCompletionSummary,
   listSubjectsInRound,
   getRoundAssignmentDetail,

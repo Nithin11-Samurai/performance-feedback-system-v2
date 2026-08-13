@@ -24,6 +24,7 @@ router.get('/feedback-form-schema', peerInsightController.getFeedbackFormSchema)
 router.post('/groups', adminOnly, [body('name').trim().notEmpty()], validate, peerInsightController.createGroup);
 router.get('/groups', adminOnly, peerInsightController.listGroups);
 router.get('/groups/:groupId', adminOnly, peerInsightController.getGroup);
+router.patch('/groups/:groupId', adminOnly, peerInsightController.updateGroup);
 router.delete('/groups/:groupId', adminOnly, peerInsightController.deleteGroup);
 router.post('/groups/:groupId/members', adminOnly, [body('userId').isUUID()], validate, peerInsightController.addMember);
 router.delete('/groups/:groupId/members/:userId', adminOnly, peerInsightController.removeMember);
@@ -32,6 +33,8 @@ router.delete('/groups/:groupId/members/:userId', adminOnly, peerInsightControll
 router.post('/groups/:groupId/rounds', adminOnly, peerInsightController.startRound);
 router.get('/groups/:groupId/rounds', adminOnly, peerInsightController.listRoundsForGroup);
 router.patch('/rounds/:roundId/close', adminOnly, peerInsightController.closeRound);
+router.patch('/rounds/:roundId/reactivate', adminOnly, peerInsightController.reactivateRound);
+router.patch('/rounds/:roundId', adminOnly, peerInsightController.updateRound);
 router.get('/rounds/:roundId/completion-summary', adminOnly, peerInsightController.getCompletionSummary);
 router.get('/rounds/:roundId/subjects', adminOnly, peerInsightController.listSubjectsInRound);
 router.get('/rounds/:roundId/assignments-detail', adminOnly, peerInsightController.getRoundAssignmentDetail);

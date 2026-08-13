@@ -57,6 +57,11 @@ export async function getGroup(groupId) {
   return data.data.group; // includes .members
 }
 
+export async function updateGroup(groupId, { name, description }) {
+  const { data } = await api.patch(`/peer-insights/groups/${groupId}`, { name, description });
+  return data.data.group;
+}
+
 export async function deleteGroup(groupId) {
   await api.delete(`/peer-insights/groups/${groupId}`);
 }
@@ -70,8 +75,8 @@ export async function removeMember(groupId, userId) {
 }
 
 // --- Rounds (Quick Action) ---
-export async function startRound(groupId, roundName) {
-  const { data } = await api.post(`/peer-insights/groups/${groupId}/rounds`, { name: roundName });
+export async function startRound(groupId, roundName, endDate) {
+  const { data } = await api.post(`/peer-insights/groups/${groupId}/rounds`, { name: roundName, endDate });
   return data.data.round;
 }
 
@@ -82,6 +87,16 @@ export async function listRoundsForGroup(groupId) {
 
 export async function closeRound(roundId) {
   const { data } = await api.patch(`/peer-insights/rounds/${roundId}/close`);
+  return data.data.round;
+}
+
+export async function reactivateRound(roundId) {
+  const { data } = await api.patch(`/peer-insights/rounds/${roundId}/reactivate`);
+  return data.data.round;
+}
+
+export async function updateRound(roundId, { name, startedAt, endDate }) {
+  const { data } = await api.patch(`/peer-insights/rounds/${roundId}`, { name, startedAt, endDate });
   return data.data.round;
 }
 
