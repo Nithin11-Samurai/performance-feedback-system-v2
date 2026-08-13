@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import NotificationBell from './NotificationBell';
 import GlobalSearchBar from './GlobalSearchBar';
+import { ROLES } from '../utils/roles';
 
 export default function Topbar({ title, onOpenMenu }) {
   const { user, logout } = useAuth();
@@ -44,7 +45,7 @@ export default function Topbar({ title, onOpenMenu }) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
-        <GlobalSearchBar />
+        {user?.role !== ROLES.EMPLOYEE && <GlobalSearchBar />}
         <ThemeToggle />
         <NotificationBell />
 

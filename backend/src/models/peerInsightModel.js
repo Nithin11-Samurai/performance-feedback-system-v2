@@ -62,6 +62,20 @@ async function listMembers(groupId) {
   return result.rows;
 }
 
+/** Every project group a specific employee is a member of, with member counts - powers the employee dashboard's "My Projects" info. */
+async function listGroupsForMember(userId) {
+  const result = await query(
+    `SELECT g.id, g.name, g.description, g.created_at,
+            (SELECT COUNT(*)::int FROM project_group_members m2 WHERE m2.project_group_id = g.id) AS member_count
+     FROM project_groups g
+     JOIN project_group_members m ON m.project_group_id = g.id
+     WHERE m.user_id = $1
+     ORDER BY g.created_at DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
 // --- Rounds ---
 
 async function createRound({ groupId, name, startedBy }) {
@@ -402,6 +416,7 @@ module.exports = {
   addMember,
   removeMember,
   listMembers,
+  listGroupsForMember,
   createRound,
   listRoundsForGroup,
   findRoundById,

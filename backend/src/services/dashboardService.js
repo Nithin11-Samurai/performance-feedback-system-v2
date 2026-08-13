@@ -102,6 +102,7 @@ async function getEmployeeSummary(employeeUser) {
 
   const pending360Assignments = await peerInsightModel.listAllPendingAssignmentsForReviewer(employeeUser.id);
   const unreadNotifications = await notificationModel.countUnread(employeeUser.id);
+  const myProjects = await peerInsightModel.listGroupsForMember(employeeUser.id);
 
   return {
     targetCycle,
@@ -111,6 +112,7 @@ async function getEmployeeSummary(employeeUser) {
       pending360Count: pending360Assignments.length,
     },
     unreadNotifications,
+    myProjects,
   };
 }
 
