@@ -329,6 +329,10 @@ async function listAllMyPendingAssignments(requesterUser) {
   return peerInsightModel.listAllPendingAssignmentsForReviewer(requesterUser.id);
 }
 
+async function getMyCompletedReviewCount(requesterUser) {
+  return peerInsightModel.countCompletedReviewsByReviewer(requesterUser.id);
+}
+
 async function saveDraft(requesterUser, feedbackId, payload) {
   const feedback = await peerInsightModel.findFeedbackById(feedbackId);
   if (!feedback) throw AppError.notFound('Assignment not found');
@@ -610,6 +614,7 @@ module.exports = {
   remindAllPendingForRound,
   listMyAssignments,
   listAllMyPendingAssignments,
+  getMyCompletedReviewCount,
   saveDraft,
   submitFeedback,
   getRawFeedbackForSubject,

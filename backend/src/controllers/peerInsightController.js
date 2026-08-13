@@ -160,6 +160,11 @@ const listAllMyPendingAssignments = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { assignments } });
 });
 
+const getMyCompletedReviewCount = asyncHandler(async (req, res) => {
+  const count = await peerInsightService.getMyCompletedReviewCount(req.user);
+  res.json({ success: true, data: { count } });
+});
+
 const saveDraft = asyncHandler(async (req, res) => {
   const feedback = await peerInsightService.saveDraft(req.user, req.params.feedbackId, req.body);
   res.json({ success: true, message: 'Draft saved', data: { feedback } });
@@ -276,6 +281,7 @@ module.exports = {
   exportRatingDistributionPdf,
   listMyAssignments,
   listAllMyPendingAssignments,
+  getMyCompletedReviewCount,
   saveDraft,
   submitFeedback,
   getRawFeedback,

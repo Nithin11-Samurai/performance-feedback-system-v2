@@ -140,6 +140,11 @@ export async function listAllMyPendingAssignments() {
   return data.data.assignments;
 }
 
+export async function getMyCompletedReviewCount() {
+  const { data } = await api.get('/peer-insights/my-completed-count');
+  return data.data.count;
+}
+
 export async function listMyAssignments(roundId) {
   const { data } = await api.get(`/peer-insights/rounds/${roundId}/my-assignments`);
   return data.data.assignments;

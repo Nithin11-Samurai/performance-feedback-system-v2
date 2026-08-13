@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
   Plus,
@@ -18,12 +19,14 @@ import {
   BarChart3,
   Check,
   FileSpreadsheet,
+  ClipboardList,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
+import * as dashboardService from '../services/dashboardService';
 import { generateStructuredSummary } from '../utils/summaryGenerator';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
@@ -31,23 +34,6 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import Badge from '../components/Badge';
 import Skeleton from '../components/Skeleton';
 import SixtyFeedbackForm from '../components/SixtyFeedbackForm';
-
-// API responses can be temporarily empty/undefined during cold starts, cached 304 responses,
-// or partial failures. Keep list rendering stable instead of allowing React to crash on .length/.map().
-const asArray = (value) => (Array.isArray(value) ? value : []);
-
-const normalizeDistribution = (value) => {
-  const distribution = value && typeof value === 'object' ? value : {};
-  return {
-    totalEmployees: Number.isFinite(Number(distribution.totalEmployees)) ? Number(distribution.totalEmployees) : 0,
-    buckets: asArray(distribution.buckets).map((bucket) => ({
-      ...bucket,
-      rating: bucket?.rating,
-      count: Number.isFinite(Number(bucket?.count)) ? Number(bucket.count) : 0,
-      employees: asArray(bucket?.employees),
-    })),
-  };
-};
 
 export default function PeerInsights() {
   usePageTitle('360° Feedback');
@@ -103,15 +89,15 @@ function HrPeerInsightsView() {
     if (activeTab !== 'overview') return;
     peerInsightService
       .getRatingDistribution(overviewProjectFilter || undefined)
-      .then((data) => setDistribution(normalizeDistribution(data)))
+      .then(setDistribution)
       .catch(() => setDistribution({ totalEmployees: 0, buckets: [] }));
     peerInsightService
       .getRatingTrend(overviewProjectFilter || undefined)
-      .then((data) => setRatingTrend(asArray(data)))
+      .then(setRatingTrend)
       .catch(() => setRatingTrend([]));
     peerInsightService
       .getTopRatedEmployees(5, overviewProjectFilter || undefined)
-      .then((data) => setTopRated(asArray(data)))
+      .then(setTopRated)
       .catch(() => setTopRated([]));
   }, [activeTab, overviewProjectFilter]);
 
@@ -119,7 +105,7 @@ function HrPeerInsightsView() {
     if (activeTab === 'overview' && pendingProjects === null) {
       peerInsightService
         .getProjectsWithPendingFeedback()
-        .then((data) => setPendingProjects(asArray(data)))
+        .then(setPendingProjects)
         .catch(() => setPendingProjects([]));
     }
   }, [activeTab, pendingProjects]);
@@ -130,7 +116,7 @@ function HrPeerInsightsView() {
     try {
       const result = await peerInsightService.remindAllPendingForRound(roundId);
       showToast(result.message);
-      peerInsightService.getProjectsWithPendingFeedback().then((data) => setPendingProjects(asArray(data)));
+      peerInsightService.getProjectsWithPendingFeedback().then(setPendingProjects);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to send reminders.', 'error');
     } finally {
@@ -146,7 +132,7 @@ function HrPeerInsightsView() {
     const timer = setTimeout(() => {
       peerInsightService
         .searchSubjects(searchTerm.trim())
-        .then((data) => setSearchResults(asArray(data)))
+        .then(setSearchResults)
         .catch(() => setSearchResults([]));
     }, 300);
     return () => clearTimeout(timer);
@@ -154,7 +140,7 @@ function HrPeerInsightsView() {
 
   async function loadGroups() {
     const data = await peerInsightService.listGroups();
-    setGroups(asArray(data));
+    setGroups(data);
   }
 
   useEffect(() => {
@@ -165,7 +151,7 @@ function HrPeerInsightsView() {
     try {
       await peerInsightService.deleteGroup(group.id);
       showToast('Project group deleted');
-      setGroups((prev) => asArray(prev).filter((g) => g.id !== group.id));
+      setGroups((prev) => prev.filter((g) => g.id !== group.id));
       if (selectedGroup?.id === group.id) setSelectedGroup(null);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to delete group.', 'error');
@@ -294,18 +280,17 @@ function HrPeerInsightsView() {
 
                 {expandedBucket !== null &&
                   (() => {
-                    const bucket = asArray(distribution?.buckets).find((b) => b.rating === expandedBucket);
-                    const bucketEmployees = asArray(bucket?.employees);
-                    const filtered = bucketEmployees
-                      .filter((e) => `${e.first_name || ''} ${e.last_name || ''}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
-                      .sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
+                    const bucket = distribution.buckets.find((b) => b.rating === expandedBucket);
+                    const filtered = bucket.employees
+                      .filter((e) => `${e.first_name} ${e.last_name}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
+                      .sort((a, b) => a.first_name.localeCompare(b.first_name));
                     return (
                       <div className="mt-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50">
-                        {bucketEmployees.length === 0 ? (
+                        {bucket.employees.length === 0 ? (
                           <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
                         ) : (
                           <>
-                            {bucketEmployees.length > 8 && (
+                            {bucket.employees.length > 8 && (
                               <input
                                 value={bucketFilter}
                                 onChange={(e) => setBucketFilter(e.target.value)}
@@ -622,7 +607,7 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   useEffect(() => {
-    peerInsightService.getRawFeedback(roundId, subjectId).then((data) => setRawFeedback(asArray(data))).catch(() => setRawFeedback([]));
+    peerInsightService.getRawFeedback(roundId, subjectId).then(setRawFeedback);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundId, subjectId]);
 
@@ -665,10 +650,10 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                   <div className="space-y-4 px-3 pb-4 text-sm">
                     {schema &&
                       f.category_scores &&
-                      asArray(schema?.categories).map((c, i) => {
+                      schema.categories.map((c, i) => {
                         const entry = f.category_scores[c.key];
                         if (!entry?.score) return null;
-                        const levelLabel = asArray(schema?.likertScale).find((l) => l.value === entry.score)?.label || entry.score;
+                        const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
                         return (
                           <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
                             <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
@@ -719,20 +704,14 @@ function EmployeeCrossProjectView({ employee, onBack }) {
   }
 
   useEffect(() => {
-    peerInsightService.getFeedbackFormSchema().then((data) => setSchema(data || { categories: [], likertScale: [] })).catch(() => setSchema({ categories: [], likertScale: [] }));
+    peerInsightService.getFeedbackFormSchema().then(setSchema);
     Promise.all([
       peerInsightService.getCrossProjectBreakdown(employee.id),
       peerInsightService.getOverallSummary(employee.id),
     ]).then(([breakdownData, summary]) => {
-      const safeBreakdown = breakdownData && typeof breakdownData === 'object'
-        ? { ...breakdownData, projects: asArray(breakdownData.projects), overall: breakdownData.overall || null }
-        : { projects: [], overall: null };
-      setData(safeBreakdown);
-      setOverallSummary(summary || null);
+      setData(breakdownData);
+      setOverallSummary(summary);
       setSummaryText(summary?.summary_text || '');
-    }).catch(() => {
-      setData({ projects: [], overall: null });
-      setOverallSummary(null);
     });
   }, [employee.id]);
 
@@ -804,13 +783,13 @@ function EmployeeCrossProjectView({ employee, onBack }) {
 
       {data === null ? (
         <Skeleton className="h-40 w-full" />
-      ) : asArray(data?.projects).length === 0 ? (
+      ) : data.projects.length === 0 ? (
         <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">
           No submitted 360° Feedback found for this employee yet.
         </p>
       ) : (
         <>
-          {asArray(data?.projects).map((p) => {
+          {data.projects.map((p) => {
             const isExpanded = expandedProjects.has(p.roundId);
             return (
               <div key={p.roundId} className="card card-reviews">
@@ -847,8 +826,8 @@ function EmployeeCrossProjectView({ employee, onBack }) {
           <div className="card card-reviews">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="flex items-center gap-2 font-display text-sm font-semibold">
-                <Sparkles size={15} /> Overall Summary — across all {asArray(data?.projects).length} project
-                {asArray(data?.projects).length === 1 ? '' : 's'}
+                <Sparkles size={15} /> Overall Summary — across all {data.projects.length} project
+                {data.projects.length === 1 ? '' : 's'}
               </h4>
               <button
                 onClick={handleGenerateSummary}
@@ -988,11 +967,11 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   const [roundEndDateInput, setRoundEndDateInput] = useState('');
   const [editNameInput, setEditNameInput] = useState(group.name);
   const [editDescriptionInput, setEditDescriptionInput] = useState(group.description || '');
-  const members = asArray(group?.members);
+  const members = members || [];
 
   async function loadRounds() {
     const data = await peerInsightService.listRoundsForGroup(group.id);
-    setRounds(asArray(data));
+    setRounds(data);
   }
 
   useEffect(() => {
@@ -1678,17 +1657,23 @@ function SubjectCuration({ round, subject, onBack }) {
 
 function EmployeePeerInsightsView() {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [assignments, setAssignments] = useState(null);
+  const [completedCount, setCompletedCount] = useState(null);
   const [summaries, setSummaries] = useState(null);
   const [overallSummary, setOverallSummary] = useState(null);
+  const [myProjects, setMyProjects] = useState(null);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState({});
   const [expandedId, setExpandedId] = useState(null);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [openProject, setOpenProject] = useState(null);
+  const [projectDetail, setProjectDetail] = useState(null);
 
   async function loadAssignments() {
     try {
       const data = await peerInsightService.listAllMyPendingAssignments();
-      setAssignments(asArray(data));
+      setAssignments(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load.');
     }
@@ -1697,13 +1682,21 @@ function EmployeePeerInsightsView() {
   useEffect(() => {
     loadAssignments();
     peerInsightService
+      .getMyCompletedReviewCount()
+      .then(setCompletedCount)
+      .catch(() => setCompletedCount(0));
+    peerInsightService
       .listMyReleasedSummaries()
-      .then((data) => setSummaries(asArray(data)))
+      .then(setSummaries)
       .catch(() => setSummaries([]));
     peerInsightService
       .getMyReleasedOverallSummary()
       .then(setOverallSummary)
       .catch(() => setOverallSummary(null));
+    dashboardService
+      .getMyDashboardSummary()
+      .then((data) => setMyProjects(data.myProjects || []))
+      .catch(() => setMyProjects([]));
   }, []);
 
   async function handleSaveDraft(assignment, payload) {
@@ -1720,123 +1713,281 @@ function EmployeePeerInsightsView() {
     try {
       await peerInsightService.submitFeedback(assignment.id);
       showToast('Submitted anonymously — thank you');
-      setAssignments((prev) => asArray(prev).filter((a) => a.id !== assignment.id));
+      setAssignments((prev) => prev.filter((a) => a.id !== assignment.id));
+      setCompletedCount((c) => (c ?? 0) + 1);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to submit.', 'error');
     }
   }
 
+  async function handleOpenProject(project) {
+    setOpenProject(project);
+    setProjectDetail(null);
+    try {
+      const detail = await peerInsightService.getMyProjectDetail(project.id);
+      setProjectDetail(detail);
+    } catch {
+      setProjectDetail({ members: [] });
+    }
+  }
+
+  const pendingCount = assignments?.length ?? 0;
+  const visibleAssignments = showAllReviews ? assignments : (assignments || []).slice(0, 3);
+
   return (
     <div className="space-y-4">
-      <div className="card card-reviews flex items-start gap-3">
-        <Sparkles size={18} className="mt-0.5 flex-shrink-0 text-primary-600" />
-        <p className="text-sm text-ink-light/60 dark:text-ink-dark/60">
-          Your responses below are completely anonymous — the people you review will never know who said
-          what, or even that you were the one asked to review them.
-        </p>
-      </div>
-
       {error && (
         <div className="flex items-center gap-2 rounded-md bg-danger/10 px-4 py-3 text-sm text-danger">
           <AlertCircle size={16} /> {error}
         </div>
       )}
 
-      <div>
-        <h3 className="mb-3 font-display text-lg font-semibold">Peer reviews to complete</h3>
-        {assignments === null ? (
-          <Skeleton className="h-24 w-full" />
-        ) : assignments.length === 0 ? (
-          <p className="py-4 text-sm text-ink-light/50 dark:text-ink-dark/50">
-            Nothing pending right now — you'll be notified if you're asked to review a teammate.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {assignments.map((a) => {
-              const isOpen = expandedId === a.id;
-              return (
-                <div key={a.id} className="card card-reviews !p-0 overflow-hidden">
-                  <button
-                    onClick={() => setExpandedId(isOpen ? null : a.id)}
-                    className="flex w-full items-center justify-between px-5 py-4 text-left"
-                  >
-                    <span className="text-sm font-medium">
-                      Anonymous review for {a.subject_first_name} {a.subject_last_name}
-                      <span className="ml-2 text-xs font-normal text-ink-light/40 dark:text-ink-dark/40">({a.group_name})</span>
-                    </span>
-                    <ChevronDown size={16} className={`flex-shrink-0 text-ink-light/40 transition-transform dark:text-ink-dark/40 ${isOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isOpen && (
-                    <div className="border-t border-primary-50 px-5 py-4 dark:border-primary-900/50">
-                      <SixtyFeedbackForm
-                        existing={drafts[a.id]}
-                        onSaveDraft={(payload) => handleSaveDraft(a, payload)}
-                        onLock={() => handleSubmit(a)}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* --- Your action items --- */}
+        <div className="card card-reviews">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">Your action items</h3>
+          {assignments === null ? (
+            <Skeleton className="h-32 w-full" />
+          ) : (
+            <>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                  <ClipboardList size={20} />
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-ink-dark">{pendingCount}</p>
+                  <p className="text-xs text-ink-light/55 dark:text-ink-dark/55">
+                    review{pendingCount === 1 ? '' : 's'} waiting for you
+                  </p>
+                </div>
+              </div>
+              {pendingCount > 0 && (
+                <button
+                  onClick={() => document.getElementById('peer-reviews-to-complete')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="btn-primary mb-4 w-full justify-center text-sm"
+                >
+                  <Send size={14} /> Start reviewing
+                </button>
+              )}
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-xl bg-primary-50/60 py-3 dark:bg-primary-900/20">
+                  <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{pendingCount}</p>
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Pending reviews</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50 py-3 dark:bg-emerald-900/20">
+                  <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{completedCount ?? 0}</p>
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Completed reviews</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* --- Peer reviews to complete --- */}
+        <div id="peer-reviews-to-complete" className="card card-reviews">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Peer reviews to complete</h3>
+            {assignments && assignments.length > 3 && (
+              <button
+                onClick={() => setShowAllReviews((v) => !v)}
+                className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
+              >
+                {showAllReviews ? 'Show less' : `View all (${assignments.length})`}
+              </button>
+            )}
+          </div>
+          {assignments === null ? (
+            <Skeleton className="h-24 w-full" />
+          ) : assignments.length === 0 ? (
+            <p className="py-4 text-sm text-ink-light/50 dark:text-ink-dark/50">
+              Nothing pending right now — you'll be notified if you're asked to review a teammate.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {visibleAssignments.map((a) => {
+                const isOpen = expandedId === a.id;
+                return (
+                  <div key={a.id} className="rounded-xl border border-primary-50 !p-0 overflow-hidden dark:border-primary-900/50">
+                    <button
+                      onClick={() => setExpandedId(isOpen ? null : a.id)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                    >
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
+                        {a.subject_first_name?.[0]}
+                        {a.subject_last_name?.[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                        <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                          {a.subject_first_name} {a.subject_last_name}
+                        </p>
+                        <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">{a.group_name}</p>
+                      </div>
+                      {a.round_end_date && (
+                        <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>
+                      )}
+                      <ChevronDown
+                        size={16}
+                        className={`flex-shrink-0 text-ink-light/40 transition-transform dark:text-ink-dark/40 ${isOpen ? 'rotate-180' : ''}`}
                       />
-                    </div>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-primary-50 px-4 py-4 dark:border-primary-900/50">
+                        <SixtyFeedbackForm
+                          existing={drafts[a.id]}
+                          onSaveDraft={(payload) => handleSaveDraft(a, payload)}
+                          onLock={() => handleSubmit(a)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* --- My projects + My 360 Feedback summaries --- */}
+        <div className="space-y-4">
+          <div className="card card-reviews">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My projects</h3>
+            {myProjects === null ? (
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : myProjects.length === 0 ? (
+              <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+                You're not part of any 360° Feedback project yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {myProjects.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => handleOpenProject(p)}
+                      className="flex w-full items-center gap-3 rounded-xl border border-primary-50 p-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+                    >
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                        <Briefcase size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">{p.name}</p>
+                        {p.description && (
+                          <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">{p.description}</p>
+                        )}
+                      </div>
+                      <span className="flex-shrink-0 text-xs text-gray-400 dark:text-ink-dark/40">
+                        {p.member_count} member{p.member_count === 1 ? '' : 's'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="card card-reviews">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My 360° Feedback summaries</h3>
+
+            {overallSummary && (
+              <div className="mb-4 rounded-card border-l-4 border-accent-600 bg-accent-50/60 p-5 shadow-card dark:bg-accent-900/20">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-accent-800 dark:text-accent-100">
+                    <Briefcase size={15} /> Overall — across all your projects
+                  </p>
+                  {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
+                    <Badge tone="primary">New</Badge>
                   )}
                 </div>
-              );
-            })}
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+                  {overallSummary.summary_text}
+                </p>
+                <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                  Shared {new Date(overallSummary.released_at).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+
+            {summaries === null ? (
+              <Skeleton className="h-24 w-full" />
+            ) : summaries.length === 0 && !overallSummary ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <Sparkles size={22} className="text-primary-300" />
+                <p className="text-sm font-medium text-gray-600 dark:text-ink-dark/70">No feedback shared yet</p>
+                <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">
+                  Once HR releases the feedback, it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {summaries.map((s) => {
+                  const isRecent = Date.now() - new Date(s.released_at).getTime() < 7 * 24 * 60 * 60 * 1000;
+                  return (
+                    <div
+                      key={s.id}
+                      className="rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20"
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
+                          <Sparkles size={15} /> {s.group_name} — {s.round_name}
+                        </p>
+                        {isRecent && <Badge tone="primary">New</Badge>}
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+                        {s.summary_text}
+                      </p>
+                      <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                        Shared {new Date(s.released_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      <div>
-        <h3 className="mb-3 font-display text-lg font-semibold">My 360° Feedback summaries</h3>
-
-        {overallSummary && (
-          <div className="mb-4 rounded-card border-l-4 border-accent-600 bg-accent-50/60 p-5 shadow-card dark:bg-accent-900/20">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-accent-800 dark:text-accent-100">
-                <Briefcase size={15} /> Overall — across all your projects
-              </p>
-              {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
-                <Badge tone="primary">New</Badge>
-              )}
-            </div>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-              {overallSummary.summary_text}
-            </p>
-            <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
-              Shared {new Date(overallSummary.released_at).toLocaleDateString()}
-            </p>
+      <Modal open={!!openProject} onClose={() => setOpenProject(null)} title={openProject?.name || 'Project'}>
+        {projectDetail === null ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
           </div>
-        )}
-
-        {summaries === null ? (
-          <Skeleton className="h-24 w-full" />
-        ) : summaries.length === 0 && !overallSummary ? (
-          <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-            No summaries shared with you yet.
-          </p>
         ) : (
-          <div className="space-y-4">
-            {summaries.map((s) => {
-              const isRecent = Date.now() - new Date(s.released_at).getTime() < 7 * 24 * 60 * 60 * 1000;
-              return (
-                <div
-                  key={s.id}
-                  className="rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
-                      <Sparkles size={15} /> {s.group_name} — {s.round_name}
-                    </p>
-                    {isRecent && <Badge tone="primary">New</Badge>}
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-                    {s.summary_text}
+          <div className="space-y-2">
+            {projectDetail.description && (
+              <p className="mb-3 text-sm text-ink-light/60 dark:text-ink-dark/60">{projectDetail.description}</p>
+            )}
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-light/40 dark:text-ink-dark/40">
+              Members ({projectDetail.members.length})
+            </p>
+            {projectDetail.members.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                  {m.first_name?.[0]}
+                  {m.last_name?.[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                    {m.first_name} {m.last_name}
                   </p>
-                  <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
-                    Shared {new Date(s.released_at).toLocaleDateString()}
+                  <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">
+                    {m.job_title || 'No title set'}
+                    {m.department ? ` · ${m.department}` : ''}
                   </p>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
-      </div>
+      </Modal>
     </div>
   );
 }

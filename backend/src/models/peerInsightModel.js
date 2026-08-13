@@ -189,10 +189,19 @@ async function listAssignmentsForReviewer(roundId, reviewerId) {
  * Reviews" list uses, since a reviewer landing on /peer-insights from a
  * notification has no round ID to look up on their own.
  */
+/** How many peer reviews this person has personally submitted as a reviewer, all-time - powers "Completed reviews" on their own action items card. */
+async function countCompletedReviewsByReviewer(reviewerId) {
+  const result = await query(
+    `SELECT COUNT(*)::int AS count FROM peer_insight_feedback WHERE reviewer_id = $1 AND status = 'submitted'`,
+    [reviewerId]
+  );
+  return result.rows[0].count;
+}
+
 async function listAllPendingAssignmentsForReviewer(reviewerId) {
   const result = await query(
     `SELECT f.*, s.first_name AS subject_first_name, s.last_name AS subject_last_name, s.job_title AS subject_job_title,
-            r.name AS round_name, g.name AS group_name
+            r.name AS round_name, r.end_date AS round_end_date, g.name AS group_name
      FROM peer_insight_feedback f
      JOIN users s ON s.id = f.subject_id
      JOIN peer_insight_rounds r ON r.id = f.round_id
@@ -511,6 +520,7 @@ module.exports = {
   bulkCreateAssignments,
   listAssignmentsForReviewer,
   listAllPendingAssignmentsForReviewer,
+  countCompletedReviewsByReviewer,
   findFeedbackById,
   saveDraft,
   markSubmitted,
