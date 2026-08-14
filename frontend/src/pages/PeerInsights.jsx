@@ -2085,7 +2085,7 @@ function EmployeePeerInsightsView() {
         <div className="card card-reviews">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Peer reviews to complete</h3>
-            {assignments && assignments.length > 3 && (
+            {assignments && assignments.length > 2 && (
               <button
                 onClick={() => setReviewsModalOpen(true)}
                 className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
@@ -2102,7 +2102,7 @@ function EmployeePeerInsightsView() {
             </p>
           ) : (
             <div className="space-y-2">
-              {assignments.slice(0, 3).map((a) => (
+              {assignments.slice(0, 2).map((a) => (
                 <button
                   key={a.id}
                   onClick={() => openSingleReview(a)}
@@ -2170,9 +2170,9 @@ function EmployeePeerInsightsView() {
         <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My 360° Feedback summaries</h3>
 
         {overallSummary && (
-          <div className="mb-4 rounded-card border-l-4 border-accent-600 bg-accent-50/60 p-5 shadow-card dark:bg-accent-900/20">
+          <div className="mb-4 rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20">
             <div className="mb-2 flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-accent-800 dark:text-accent-100">
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
                 <Briefcase size={15} /> Overall — across all your projects
               </p>
               {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
@@ -2187,7 +2187,7 @@ function EmployeePeerInsightsView() {
             {overallSummary.summary_text.length > 320 && (
               <button
                 onClick={() => setExpandedSummaryId(expandedSummaryId === 'overall' ? null : 'overall')}
-                className="mt-1 text-xs font-medium text-accent-700 hover:underline dark:text-accent-200"
+                className="mt-1 text-xs font-medium text-primary-700 hover:underline dark:text-primary-200"
               >
                 {expandedSummaryId === 'overall' ? 'Show less' : 'Read more'}
               </button>
