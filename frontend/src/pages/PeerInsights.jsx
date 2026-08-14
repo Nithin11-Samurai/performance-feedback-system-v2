@@ -20,6 +20,7 @@ import {
   Check,
   FileSpreadsheet,
   ClipboardList,
+  Star,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +35,7 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Badge from '../components/Badge';
 import Skeleton from '../components/Skeleton';
+import RadialProgress from '../components/RadialProgress';
 import SixtyFeedbackForm from '../components/SixtyFeedbackForm';
 
 export default function PeerInsights() {
