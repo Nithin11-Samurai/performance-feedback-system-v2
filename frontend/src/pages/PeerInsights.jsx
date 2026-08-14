@@ -2117,7 +2117,7 @@ function EmployeePeerInsightsView() {
               Nothing pending right now — you'll be notified if you're asked to review a teammate.
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className={`space-y-2 ${showAllReviews ? 'max-h-[420px] overflow-y-auto pr-1' : ''}`}>
               {visibleAssignments.map((a) => (
                 <button
                   key={a.id}
@@ -2156,7 +2156,7 @@ function EmployeePeerInsightsView() {
               You're not part of any 360° Feedback project yet.
             </p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
               {myProjects.map((p) => (
                 <li key={p.id}>
                   <button
