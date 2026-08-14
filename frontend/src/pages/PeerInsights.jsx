@@ -1872,10 +1872,12 @@ function EmployeePeerInsightsView() {
   const [myProjects, setMyProjects] = useState(null);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState({});
-  const [expandedId, setExpandedId] = useState(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [openProject, setOpenProject] = useState(null);
   const [projectDetail, setProjectDetail] = useState(null);
+  const [reviewQueue, setReviewQueue] = useState(null);
+  const [reviewQueueIndex, setReviewQueueIndex] = useState(0);
+  const [expandedSummaryId, setExpandedSummaryId] = useState(null);
 
   async function loadAssignments() {
     try {
@@ -1922,9 +1924,27 @@ function EmployeePeerInsightsView() {
       showToast('Submitted anonymously — thank you');
       setAssignments((prev) => prev.filter((a) => a.id !== assignment.id));
       setCompletedCount((c) => (c ?? 0) + 1);
+      if (reviewQueue) {
+        if (reviewQueueIndex + 1 < reviewQueue.length) {
+          setReviewQueueIndex((i) => i + 1);
+        } else {
+          setReviewQueue(null);
+        }
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to submit.', 'error');
     }
+  }
+
+  function startReviewing() {
+    if (!assignments || assignments.length === 0) return;
+    setReviewQueue(assignments.map((a) => a.id));
+    setReviewQueueIndex(0);
+  }
+
+  function openSingleReview(assignment) {
+    setReviewQueue([assignment.id]);
+    setReviewQueueIndex(0);
   }
 
   async function handleOpenProject(project) {
@@ -1940,6 +1960,8 @@ function EmployeePeerInsightsView() {
 
   const pendingCount = assignments?.length ?? 0;
   const visibleAssignments = showAllReviews ? assignments : (assignments || []).slice(0, 3);
+  const currentReviewAssignment =
+    reviewQueue && assignments ? assignments.find((a) => a.id === reviewQueue[reviewQueueIndex]) : null;
 
   return (
     <div className="space-y-4">
@@ -1949,7 +1971,7 @@ function EmployeePeerInsightsView() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
         {/* --- Your action items --- */}
         <div className="card card-reviews">
           <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">Your action items</h3>
@@ -1969,10 +1991,7 @@ function EmployeePeerInsightsView() {
                 </div>
               </div>
               {pendingCount > 0 && (
-                <button
-                  onClick={() => document.getElementById('peer-reviews-to-complete')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="btn-primary mb-4 w-full justify-center text-sm"
-                >
+                <button onClick={startReviewing} className="btn-primary mb-4 w-full justify-center text-sm">
                   <Send size={14} /> Start reviewing
                 </button>
               )}
@@ -1991,7 +2010,7 @@ function EmployeePeerInsightsView() {
         </div>
 
         {/* --- Peer reviews to complete --- */}
-        <div id="peer-reviews-to-complete" className="card card-reviews">
+        <div className="card card-reviews">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Peer reviews to complete</h3>
             {assignments && assignments.length > 3 && (
@@ -2011,151 +2030,171 @@ function EmployeePeerInsightsView() {
             </p>
           ) : (
             <div className="space-y-2">
-              {visibleAssignments.map((a) => {
-                const isOpen = expandedId === a.id;
-                return (
-                  <div key={a.id} className="rounded-xl border border-primary-50 !p-0 overflow-hidden dark:border-primary-900/50">
-                    <button
-                      onClick={() => setExpandedId(isOpen ? null : a.id)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                    >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
-                        {a.subject_first_name?.[0]}
-                        {a.subject_last_name?.[0]}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
-                        <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
-                          {a.subject_first_name} {a.subject_last_name}
-                        </p>
-                        <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">{a.group_name}</p>
-                      </div>
-                      {a.round_end_date && (
-                        <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>
-                      )}
-                      <ChevronDown
-                        size={16}
-                        className={`flex-shrink-0 text-ink-light/40 transition-transform dark:text-ink-dark/40 ${isOpen ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                    {isOpen && (
-                      <div className="border-t border-primary-50 px-4 py-4 dark:border-primary-900/50">
-                        <SixtyFeedbackForm
-                          existing={drafts[a.id]}
-                          onSaveDraft={(payload) => handleSaveDraft(a, payload)}
-                          onLock={() => handleSubmit(a)}
-                        />
-                      </div>
-                    )}
+              {visibleAssignments.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => openSingleReview(a)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-primary-50 px-4 py-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+                >
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
+                    {a.subject_first_name?.[0]}
+                    {a.subject_last_name?.[0]}
                   </div>
-                );
-              })}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                      {a.subject_first_name} {a.subject_last_name}
+                    </p>
+                    <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">{a.group_name}</p>
+                  </div>
+                  {a.round_end_date && <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>}
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* --- My projects + My 360 Feedback summaries --- */}
-        <div className="space-y-4">
-          <div className="card card-reviews">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My projects</h3>
-            {myProjects === null ? (
-              <div className="space-y-2">
-                {[...Array(2)].map((_, i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
-                ))}
-              </div>
-            ) : myProjects.length === 0 ? (
-              <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-                You're not part of any 360° Feedback project yet.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {myProjects.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      onClick={() => handleOpenProject(p)}
-                      className="flex w-full items-center gap-3 rounded-xl border-l-[3px] border-primary-400 bg-primary-50/50 p-3 text-left transition-colors hover:bg-primary-50 dark:border-primary-500 dark:bg-primary-900/20 dark:hover:bg-primary-900/30"
-                    >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
-                        <Briefcase size={16} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">{p.name}</p>
-                        {p.description && (
-                          <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">{p.description}</p>
-                        )}
-                      </div>
-                      <span className="flex-shrink-0 text-xs text-gray-400 dark:text-ink-dark/40">
-                        {p.member_count} member{p.member_count === 1 ? '' : 's'}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="card card-reviews">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My 360° Feedback summaries</h3>
-
-            {overallSummary && (
-              <div className="mb-4 rounded-card border-l-4 border-accent-600 bg-accent-50/60 p-5 shadow-card dark:bg-accent-900/20">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-accent-800 dark:text-accent-100">
-                    <Briefcase size={15} /> Overall — across all your projects
-                  </p>
-                  {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
-                    <Badge tone="primary">New</Badge>
-                  )}
-                </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-                  {overallSummary.summary_text}
-                </p>
-                <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
-                  Shared {new Date(overallSummary.released_at).toLocaleDateString()}
-                </p>
-              </div>
-            )}
-
-            {summaries === null ? (
-              <Skeleton className="h-24 w-full" />
-            ) : summaries.length === 0 && !overallSummary ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <Sparkles size={22} className="text-primary-300" />
-                <p className="text-sm font-medium text-gray-600 dark:text-ink-dark/70">No feedback shared yet</p>
-                <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">
-                  Once HR releases the feedback, it will appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {summaries.map((s) => {
-                  const isRecent = Date.now() - new Date(s.released_at).getTime() < 7 * 24 * 60 * 60 * 1000;
-                  return (
-                    <div
-                      key={s.id}
-                      className="rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
-                          <Sparkles size={15} /> {s.group_name} — {s.round_name}
-                        </p>
-                        {isRecent && <Badge tone="primary">New</Badge>}
-                      </div>
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-                        {s.summary_text}
-                      </p>
-                      <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
-                        Shared {new Date(s.released_at).toLocaleDateString()}
-                      </p>
+        {/* --- My projects --- */}
+        <div className="card card-reviews">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My projects</h3>
+          {myProjects === null ? (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : myProjects.length === 0 ? (
+            <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              You're not part of any 360° Feedback project yet.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {myProjects.map((p) => (
+                <li key={p.id}>
+                  <button
+                    onClick={() => handleOpenProject(p)}
+                    className="flex w-full items-center gap-3 rounded-xl border-l-[3px] border-primary-400 bg-primary-50/50 p-3 text-left transition-colors hover:bg-primary-50 dark:border-primary-500 dark:bg-primary-900/20 dark:hover:bg-primary-900/30"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
+                      <Briefcase size={16} />
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">{p.name}</p>
+                      {p.description && <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">{p.description}</p>}
+                    </div>
+                    <span className="flex-shrink-0 text-xs text-gray-400 dark:text-ink-dark/40">
+                      {p.member_count} member{p.member_count === 1 ? '' : 's'}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
+
+      {/* --- My 360 Feedback summaries: full width, below everything, so long text never stretches the columns above --- */}
+      <div className="card card-reviews">
+        <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My 360° Feedback summaries</h3>
+
+        {overallSummary && (
+          <div className="mb-4 rounded-card border-l-4 border-accent-600 bg-accent-50/60 p-5 shadow-card dark:bg-accent-900/20">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm font-semibold text-accent-800 dark:text-accent-100">
+                <Briefcase size={15} /> Overall — across all your projects
+              </p>
+              {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
+                <Badge tone="primary">New</Badge>
+              )}
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+              {expandedSummaryId === 'overall' || overallSummary.summary_text.length <= 320
+                ? overallSummary.summary_text
+                : `${overallSummary.summary_text.slice(0, 320)}…`}
+            </p>
+            {overallSummary.summary_text.length > 320 && (
+              <button
+                onClick={() => setExpandedSummaryId(expandedSummaryId === 'overall' ? null : 'overall')}
+                className="mt-1 text-xs font-medium text-accent-700 hover:underline dark:text-accent-200"
+              >
+                {expandedSummaryId === 'overall' ? 'Show less' : 'Read more'}
+              </button>
+            )}
+            <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
+              Shared {new Date(overallSummary.released_at).toLocaleDateString()}
+            </p>
+          </div>
+        )}
+
+        {summaries === null ? (
+          <Skeleton className="h-24 w-full" />
+        ) : summaries.length === 0 && !overallSummary ? (
+          <div className="flex flex-col items-center gap-2 py-8 text-center">
+            <Sparkles size={22} className="text-primary-300" />
+            <p className="text-sm font-medium text-gray-600 dark:text-ink-dark/70">No feedback shared yet</p>
+            <p className="text-xs text-ink-light/40 dark:text-ink-dark/40">Once HR releases the feedback, it will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {summaries.map((s) => {
+              const isRecent = Date.now() - new Date(s.released_at).getTime() < 7 * 24 * 60 * 60 * 1000;
+              const isExpanded = expandedSummaryId === s.id;
+              return (
+                <div key={s.id} className="rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
+                      <Sparkles size={15} /> {s.group_name} — {s.round_name}
+                    </p>
+                    {isRecent && <Badge tone="primary">New</Badge>}
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+                    {isExpanded || s.summary_text.length <= 220 ? s.summary_text : `${s.summary_text.slice(0, 220)}…`}
+                  </p>
+                  {s.summary_text.length > 220 && (
+                    <button
+                      onClick={() => setExpandedSummaryId(isExpanded ? null : s.id)}
+                      className="mt-1 text-xs font-medium text-primary-700 hover:underline dark:text-primary-200"
+                    >
+                      {isExpanded ? 'Show less' : 'Read more'}
+                    </button>
+                  )}
+                  <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                    Shared {new Date(s.released_at).toLocaleDateString()}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* --- Review flow: one assignment at a time, whether opened via Start Reviewing or a single click --- */}
+      <Modal
+        open={!!currentReviewAssignment}
+        onClose={() => setReviewQueue(null)}
+        title={
+          currentReviewAssignment
+            ? `Review for ${currentReviewAssignment.subject_first_name} ${currentReviewAssignment.subject_last_name}`
+            : 'Review'
+        }
+        size="lg"
+      >
+        {currentReviewAssignment && (
+          <div className="max-h-[70vh] overflow-y-auto pr-1">
+            {reviewQueue.length > 1 && (
+              <p className="mb-4 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+                Reviewing {reviewQueueIndex + 1} of {reviewQueue.length}
+              </p>
+            )}
+            <SixtyFeedbackForm
+              key={currentReviewAssignment.id}
+              existing={drafts[currentReviewAssignment.id]}
+              onSaveDraft={(payload) => handleSaveDraft(currentReviewAssignment, payload)}
+              onLock={() => handleSubmit(currentReviewAssignment)}
+            />
+          </div>
+        )}
+      </Modal>
 
       <Modal open={!!openProject} onClose={() => setOpenProject(null)} title={openProject?.name || 'Project'}>
         {projectDetail === null ? (
