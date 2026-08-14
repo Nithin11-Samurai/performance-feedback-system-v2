@@ -1130,7 +1130,7 @@ function GroupDetail({ group, onBack, onOpenRound, onGroupUpdated }) {
   const [roundEndDateInput, setRoundEndDateInput] = useState('');
   const [editNameInput, setEditNameInput] = useState(group.name);
   const [editDescriptionInput, setEditDescriptionInput] = useState(group.description || '');
-  const members = members || [];
+  const members = group.members || [];
 
   async function loadRounds() {
     const data = await peerInsightService.listRoundsForGroup(group.id);
