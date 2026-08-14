@@ -932,12 +932,12 @@ function PerReviewerDetail({ roundId, subjectId, schema }) {
                           </div>
                         );
                       })}
-                    {f.comments && (
-                      <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
-                        <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
-                        <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">"{f.comments}"</p>
-                      </div>
-                    )}
+                    <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
+                      <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
+                      <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">
+                        {f.comments ? `"${f.comments}"` : 'No final thoughts provided.'}
+                      </p>
+                    </div>
                     {f.strengths && <p>Strengths: {f.strengths}</p>}
                     {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
                   </div>
@@ -1858,12 +1858,12 @@ function SubjectCuration({ round, subject, onBack }) {
                                 </div>
                               );
                             })}
-                          {f.comments && (
-                            <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
-                              <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
-                              <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">"{f.comments}"</p>
-                            </div>
-                          )}
+                          <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
+                            <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
+                            <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">
+                              {f.comments ? `"${f.comments}"` : 'No final thoughts provided.'}
+                            </p>
+                          </div>
                           {f.strengths && <p>Strengths: {f.strengths}</p>}
                           {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
                         </div>
@@ -2043,7 +2043,7 @@ function EmployeePeerInsightsView() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* --- Your action items --- */}
         <div className="card card-reviews">
           <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">Your action items</h3>
