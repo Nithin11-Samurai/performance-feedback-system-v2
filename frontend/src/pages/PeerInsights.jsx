@@ -2165,46 +2165,9 @@ function EmployeePeerInsightsView() {
         </div>
       </div>
 
-      {/* --- My 360 Feedback summaries: full width, below everything, so long text never stretches the columns above --- */}
+      {/* --- My 360 Feedback summaries: full width, below everything. Overall card sits in the same grid as group cards so they share rows instead of leaving empty space --- */}
       <div className="card card-reviews">
         <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">My 360° Feedback summaries</h3>
-
-        {overallSummary && (
-          <div className="mb-4 rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
-                <Briefcase size={15} /> Overall — across all your projects
-              </p>
-              {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
-                <Badge tone="primary">New</Badge>
-              )}
-            </div>
-            <div className="text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-              {(expandedSummaryId === 'overall' || overallSummary.summary_text.length <= 320
-                ? overallSummary.summary_text
-                : `${overallSummary.summary_text.slice(0, 320)}…`
-              )
-                .split(/\n\s*\n/)
-                .filter((para) => para.trim().length > 0)
-                .map((para, i) => (
-                  <p key={i} className={i > 0 ? 'mt-2' : ''}>
-                    {para.trim()}
-                  </p>
-                ))}
-            </div>
-            {overallSummary.summary_text.length > 320 && (
-              <button
-                onClick={() => setExpandedSummaryId(expandedSummaryId === 'overall' ? null : 'overall')}
-                className="mt-1 text-xs font-medium text-primary-700 hover:underline dark:text-primary-200"
-              >
-                {expandedSummaryId === 'overall' ? 'Show less' : 'Read more'}
-              </button>
-            )}
-            <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
-              Shared {new Date(overallSummary.released_at).toLocaleDateString()}
-            </p>
-          </div>
-        )}
 
         {summaries === null ? (
           <Skeleton className="h-24 w-full" />
@@ -2216,6 +2179,42 @@ function EmployeePeerInsightsView() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {overallSummary && (
+              <div className="rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
+                    <Briefcase size={15} /> Overall — across all your projects
+                  </p>
+                  {Date.now() - new Date(overallSummary.released_at).getTime() < 7 * 24 * 60 * 60 * 1000 && (
+                    <Badge tone="primary">New</Badge>
+                  )}
+                </div>
+                <div className="text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+                  {(expandedSummaryId === 'overall' || overallSummary.summary_text.length <= 320
+                    ? overallSummary.summary_text
+                    : `${overallSummary.summary_text.slice(0, 320)}…`
+                  )
+                    .split(/\n\s*\n/)
+                    .filter((para) => para.trim().length > 0)
+                    .map((para, i) => (
+                      <p key={i} className={i > 0 ? 'mt-2' : ''}>
+                        {para.trim()}
+                      </p>
+                    ))}
+                </div>
+                {overallSummary.summary_text.length > 320 && (
+                  <button
+                    onClick={() => setExpandedSummaryId(expandedSummaryId === 'overall' ? null : 'overall')}
+                    className="mt-1 text-xs font-medium text-primary-700 hover:underline dark:text-primary-200"
+                  >
+                    {expandedSummaryId === 'overall' ? 'Show less' : 'Read more'}
+                  </button>
+                )}
+                <p className="mt-3 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                  Shared {new Date(overallSummary.released_at).toLocaleDateString()}
+                </p>
+              </div>
+            )}
             {summaries.map((s) => {
               const isRecent = Date.now() - new Date(s.released_at).getTime() < 7 * 24 * 60 * 60 * 1000;
               const isExpanded = expandedSummaryId === s.id;
