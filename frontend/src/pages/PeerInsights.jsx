@@ -195,30 +195,15 @@ function HrPeerInsightsView() {
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-5 dark:bg-primary-900/20 sm:p-6">
-        <div className="relative z-10 max-w-lg">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-ink-dark">
-            <Users2 size={20} className="text-primary-600" /> See how your teams really grow
+      <div className="relative overflow-hidden rounded-2xl bg-primary-50 px-5 py-4 dark:bg-primary-900/20 sm:px-6">
+        <div className="relative z-10 flex items-center gap-2">
+          <Users2 size={18} className="flex-shrink-0 text-primary-600" />
+          <h2 className="text-base font-semibold text-gray-900 dark:text-ink-dark">
+            360° Feedback — see how your teams are really growing
           </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-ink-dark/70">
-            Anonymous peer feedback surfaces your top performers, flags where coaching is needed, and tracks
-            participation across every project — all in one place.
-          </p>
         </div>
-        <svg viewBox="0 0 240 140" className="pointer-events-none absolute -right-2 bottom-0 hidden h-full w-56 sm:block" aria-hidden="true">
-          <circle cx="205" cy="30" r="26" fill="#fde9f2" />
-          <circle cx="205" cy="30" r="26" fill="none" stroke="#f6b8d9" strokeWidth="2" strokeDasharray="4 4" />
-          <path d="M20 120 L60 70 L100 90 L150 40 L215 15" fill="none" stroke="#E83E93" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="20" cy="120" r="5" fill="#E83E93" />
-          <circle cx="60" cy="70" r="5" fill="#E83E93" />
-          <circle cx="100" cy="90" r="5" fill="#E83E93" />
-          <circle cx="150" cy="40" r="5" fill="#E83E93" />
-          <circle cx="215" cy="15" r="6" fill="#c4126d" />
-          <path d="M205 15 L219 15 L215 9 Z" fill="#c4126d" />
-          <circle cx="35" cy="45" r="10" fill="#f6b8d9" />
-          <circle cx="35" cy="45" r="10" fill="none" />
-          <path d="M22 62 q13 -10 26 0" fill="none" stroke="#f6b8d9" strokeWidth="4" strokeLinecap="round" />
-        </svg>
+        <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-primary-100/50" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-14 right-16 h-24 w-24 rounded-full bg-primary-200/30" aria-hidden="true" />
       </div>
 
       <div className="flex gap-1 border-b border-primary-100 dark:border-primary-900/70">
@@ -278,11 +263,11 @@ function HrPeerInsightsView() {
                 <div className="space-y-4 lg:col-span-2">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                     {[
-                      { rating: 5, label: 'Excellent', color: '#22c55e', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-                      { rating: 4, label: 'Very Good', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-                      { rating: 3, label: 'Good', color: '#a855f7', bg: 'bg-violet-50 dark:bg-violet-900/20' },
-                      { rating: 2, label: 'Needs Improvement', color: '#f97316', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-                      { rating: 1, label: 'Poor', color: '#E83E93', bg: 'bg-primary-50 dark:bg-primary-900/20' },
+                      { rating: 5, label: 'Excellent', color: '#E83E93', bg: 'bg-primary-50/80 dark:bg-primary-900/25' },
+                      { rating: 4, label: 'Very Good', color: '#E83E93', bg: 'bg-primary-50/60 dark:bg-primary-900/20' },
+                      { rating: 3, label: 'Good', color: '#E83E93', bg: 'bg-primary-50/40 dark:bg-primary-900/15' },
+                      { rating: 2, label: 'Needs Improvement', color: '#E83E93', bg: 'bg-gray-50 dark:bg-primary-900/10' },
+                      { rating: 1, label: 'Poor', color: '#E83E93', bg: 'bg-gray-50 dark:bg-primary-900/10' },
                     ].map((meta) => {
                       const b = distribution.buckets.find((x) => x.rating === meta.rating) || { count: 0, employees: [] };
                       const pct = distribution.totalEmployees > 0 ? Math.round((b.count / distribution.totalEmployees) * 100) : 0;
@@ -1960,7 +1945,7 @@ function EmployeePeerInsightsView() {
   const [myProjects, setMyProjects] = useState(null);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState({});
-  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reviewsModalOpen, setReviewsModalOpen] = useState(false);
   const [openProject, setOpenProject] = useState(null);
   const [projectDetail, setProjectDetail] = useState(null);
   const [reviewQueue, setReviewQueue] = useState(null);
@@ -2047,7 +2032,6 @@ function EmployeePeerInsightsView() {
   }
 
   const pendingCount = assignments?.length ?? 0;
-  const visibleAssignments = showAllReviews ? assignments : (assignments || []).slice(0, 3);
   const currentReviewAssignment =
     reviewQueue && assignments ? assignments.find((a) => a.id === reviewQueue[reviewQueueIndex]) : null;
 
@@ -2103,10 +2087,10 @@ function EmployeePeerInsightsView() {
             <h3 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Peer reviews to complete</h3>
             {assignments && assignments.length > 3 && (
               <button
-                onClick={() => setShowAllReviews((v) => !v)}
+                onClick={() => setReviewsModalOpen(true)}
                 className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
               >
-                {showAllReviews ? 'Show less' : `View all (${assignments.length})`}
+                View all ({assignments.length})
               </button>
             )}
           </div>
@@ -2117,8 +2101,8 @@ function EmployeePeerInsightsView() {
               Nothing pending right now — you'll be notified if you're asked to review a teammate.
             </p>
           ) : (
-            <div className={`space-y-2 ${showAllReviews ? 'max-h-[420px] overflow-y-auto pr-1' : ''}`}>
-              {visibleAssignments.map((a) => (
+            <div className="space-y-2">
+              {assignments.slice(0, 3).map((a) => (
                 <button
                   key={a.id}
                   onClick={() => openSingleReview(a)}
@@ -2255,6 +2239,35 @@ function EmployeePeerInsightsView() {
           </div>
         )}
       </div>
+
+      {/* --- View all pending reviews, opened as a popup instead of expanding the card --- */}
+      <Modal open={reviewsModalOpen} onClose={() => setReviewsModalOpen(false)} title="Peer reviews to complete" size="lg">
+        <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
+          {(assignments || []).map((a) => (
+            <button
+              key={a.id}
+              onClick={() => {
+                setReviewsModalOpen(false);
+                openSingleReview(a);
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-primary-50 px-4 py-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+            >
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
+                {a.subject_first_name?.[0]}
+                {a.subject_last_name?.[0]}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                  {a.subject_first_name} {a.subject_last_name}
+                </p>
+                <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">{a.group_name}</p>
+              </div>
+              {a.round_end_date && <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>}
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       {/* --- Review flow: one assignment at a time, whether opened via Start Reviewing or a single click --- */}
       <Modal

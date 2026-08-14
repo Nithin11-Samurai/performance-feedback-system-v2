@@ -388,6 +388,57 @@ function DirectReportsSection({ employee }) {
   );
 }
 
+/**
+ * Search-based assignment field for Manager/Mentor/Team Lead - any
+ * employee can be picked, not just a pre-filtered "managers" list.
+ * Shows the current assignee as a chip (Change/Clear) or the search
+ * input directly when nothing is assigned yet.
+ */
+function PersonAssignField({ label, currentId, currentName, excludeId, onChange }) {
+  const [editing, setEditing] = useState(false);
+
+  if (currentId && !editing) {
+    return (
+      <div>
+        <label className="label">{label}</label>
+        <div className="flex items-center justify-between rounded-xl border border-primary-100 px-3 py-2 dark:border-primary-900/50">
+          <span className="text-sm font-medium text-gray-900 dark:text-ink-dark">{currentName || 'Unknown'}</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
+            >
+              Change
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange('', null)}
+              className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <EmployeePicker
+        placeholder={`Search to set ${label.toLowerCase()}…`}
+        excludeIds={[excludeId]}
+        onSelect={(person) => {
+          onChange(person.id, person);
+          setEditing(false);
+        }}
+      />
+    </div>
+  );
+}
+
 function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
   const { user: currentUser } = useAuth();
   const canDelete = [ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN].includes(currentUser.role);
@@ -403,8 +454,11 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
     department: employee.department || '',
     role: employee.role,
     managerId: employee.manager_id || '',
+    managerName: employee.manager_first_name ? `${employee.manager_first_name} ${employee.manager_last_name}` : '',
     mentorId: employee.mentor_id || '',
+    mentorName: employee.mentor_first_name ? `${employee.mentor_first_name} ${employee.mentor_last_name}` : '',
     teamLeadId: employee.team_lead_id || '',
+    teamLeadName: employee.team_lead_first_name ? `${employee.team_lead_first_name} ${employee.team_lead_last_name}` : '',
     dateOfJoining: employee.date_of_joining ? employee.date_of_joining.slice(0, 10) : '',
   });
   const [confirmToggle, setConfirmToggle] = useState(false);
@@ -419,8 +473,11 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
       department: employee.department || '',
       role: employee.role,
       managerId: employee.manager_id || '',
+      managerName: employee.manager_first_name ? `${employee.manager_first_name} ${employee.manager_last_name}` : '',
       mentorId: employee.mentor_id || '',
+      mentorName: employee.mentor_first_name ? `${employee.mentor_first_name} ${employee.mentor_last_name}` : '',
       teamLeadId: employee.team_lead_id || '',
+      teamLeadName: employee.team_lead_first_name ? `${employee.team_lead_first_name} ${employee.team_lead_last_name}` : '',
       dateOfJoining: employee.date_of_joining ? employee.date_of_joining.slice(0, 10) : '',
     });
   }, [employee]);
@@ -562,57 +619,45 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="label">Manager</label>
-            <select
-              className="input"
-              value={editForm.managerId}
-              onChange={(e) => setEditForm((f) => ({ ...f, managerId: e.target.value }))}
-            >
-              <option value="">None</option>
-              {managers
-                .filter((m) => m.id !== employee.id)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.first_name} {m.last_name}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Mentor</label>
-            <select
-              className="input"
-              value={editForm.mentorId}
-              onChange={(e) => setEditForm((f) => ({ ...f, mentorId: e.target.value }))}
-            >
-              <option value="">None</option>
-              {managers
-                .filter((m) => m.id !== employee.id)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.first_name} {m.last_name}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Team Lead</label>
-            <select
-              className="input"
-              value={editForm.teamLeadId}
-              onChange={(e) => setEditForm((f) => ({ ...f, teamLeadId: e.target.value }))}
-            >
-              <option value="">None</option>
-              {managers
-                .filter((m) => m.id !== employee.id)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.first_name} {m.last_name}
-                  </option>
-                ))}
-            </select>
-          </div>
+          <PersonAssignField
+            label="Manager"
+            currentId={editForm.managerId}
+            currentName={editForm.managerName}
+            excludeId={employee.id}
+            onChange={(id, person) =>
+              setEditForm((f) => ({
+                ...f,
+                managerId: id,
+                managerName: person ? `${person.first_name} ${person.last_name}` : '',
+              }))
+            }
+          />
+          <PersonAssignField
+            label="Mentor"
+            currentId={editForm.mentorId}
+            currentName={editForm.mentorName}
+            excludeId={employee.id}
+            onChange={(id, person) =>
+              setEditForm((f) => ({
+                ...f,
+                mentorId: id,
+                mentorName: person ? `${person.first_name} ${person.last_name}` : '',
+              }))
+            }
+          />
+          <PersonAssignField
+            label="Team Lead"
+            currentId={editForm.teamLeadId}
+            currentName={editForm.teamLeadName}
+            excludeId={employee.id}
+            onChange={(id, person) =>
+              setEditForm((f) => ({
+                ...f,
+                teamLeadId: id,
+                teamLeadName: person ? `${person.first_name} ${person.last_name}` : '',
+              }))
+            }
+          />
           <div className="sm:col-span-2">
             <button type="submit" className="btn-primary">
               Save changes
@@ -1666,15 +1711,24 @@ showToast("Delete failed","error");
 
       <div className="card card-reviews h-fit !p-0">
         {!directoryOpen ? (
-          <button
-            onClick={() => setDirectoryOpen(true)}
-            title="Show directory"
-            aria-label="Show directory"
-            className="flex w-full flex-col items-center gap-2 py-5 text-ink-light/50 hover:text-primary-600 dark:text-ink-dark/50 dark:hover:text-primary-300"
-          >
-            <ChevronRight size={18} />
-            <span className="text-[10px] font-medium uppercase tracking-wide [writing-mode:vertical-rl]">Directory</span>
-          </button>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <button
+              onClick={() => setDirectoryOpen(true)}
+              title="Show directory"
+              aria-label="Show directory"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-light/50 hover:bg-primary-50 hover:text-primary-600 dark:text-ink-dark/50 dark:hover:bg-primary-900/40 dark:hover:text-primary-300"
+            >
+              <ChevronRight size={17} />
+            </button>
+            <div className="h-px w-6 bg-primary-100 dark:bg-primary-900/50" />
+            <button
+              onClick={() => setDirectoryOpen(true)}
+              title={`Directory — ${total} employees`}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300"
+            >
+              <Users2 size={16} />
+            </button>
+          </div>
         ) : (
         <div className="p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
