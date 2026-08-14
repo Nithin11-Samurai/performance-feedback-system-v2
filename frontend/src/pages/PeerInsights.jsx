@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
   Plus,
   Users2,
@@ -79,7 +78,7 @@ function HrPeerInsightsView() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [groupFilter, setGroupFilter] = useState('');
   const [distribution, setDistribution] = useState(null);
-  const [ratingTrend, setRatingTrend] = useState(null);
+  const [categoryAverages, setCategoryAverages] = useState(null);
   const [topRated, setTopRated] = useState(null);
   const [pendingProjects, setPendingProjects] = useState(null);
   const [remindingRoundId, setRemindingRoundId] = useState(null);
@@ -97,9 +96,9 @@ function HrPeerInsightsView() {
       .then(setDistribution)
       .catch(() => setDistribution({ totalEmployees: 0, buckets: [] }));
     peerInsightService
-      .getRatingTrend(overviewProjectFilter || undefined)
-      .then(setRatingTrend)
-      .catch(() => setRatingTrend([]));
+      .getCategoryAverages(overviewProjectFilter || undefined)
+      .then(setCategoryAverages)
+      .catch(() => setCategoryAverages([]));
     peerInsightService
       .getTopRatedEmployees(5, overviewProjectFilter || undefined)
       .then(setTopRated)
@@ -194,11 +193,30 @@ function HrPeerInsightsView() {
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-4 dark:bg-primary-900/20">
-        <h2 className="relative z-10 flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-ink-dark">
-          <Users2 size={18} className="text-primary-600" /> 360° Feedback — anonymous, project-based growth insights.
-        </h2>
-        <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary-100/60" aria-hidden="true" />
+      <div className="relative overflow-hidden rounded-2xl bg-primary-50 p-5 dark:bg-primary-900/20 sm:p-6">
+        <div className="relative z-10 max-w-lg">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-ink-dark">
+            <Users2 size={20} className="text-primary-600" /> See how your teams really grow
+          </h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-ink-dark/70">
+            Anonymous peer feedback surfaces your top performers, flags where coaching is needed, and tracks
+            participation across every project — all in one place.
+          </p>
+        </div>
+        <svg viewBox="0 0 240 140" className="pointer-events-none absolute -right-2 bottom-0 hidden h-full w-56 sm:block" aria-hidden="true">
+          <circle cx="205" cy="30" r="26" fill="#fde9f2" />
+          <circle cx="205" cy="30" r="26" fill="none" stroke="#f6b8d9" strokeWidth="2" strokeDasharray="4 4" />
+          <path d="M20 120 L60 70 L100 90 L150 40 L215 15" fill="none" stroke="#E83E93" strokeWidth="3" strokeLinecap="round" />
+          <circle cx="20" cy="120" r="5" fill="#E83E93" />
+          <circle cx="60" cy="70" r="5" fill="#E83E93" />
+          <circle cx="100" cy="90" r="5" fill="#E83E93" />
+          <circle cx="150" cy="40" r="5" fill="#E83E93" />
+          <circle cx="215" cy="15" r="6" fill="#c4126d" />
+          <path d="M205 15 L219 15 L215 9 Z" fill="#c4126d" />
+          <circle cx="35" cy="45" r="10" fill="#f6b8d9" />
+          <circle cx="35" cy="45" r="10" fill="none" />
+          <path d="M22 62 q13 -10 26 0" fill="none" stroke="#f6b8d9" strokeWidth="4" strokeLinecap="round" />
+        </svg>
       </div>
 
       <div className="flex gap-1 border-b border-primary-100 dark:border-primary-900/70">
@@ -332,8 +350,8 @@ function HrPeerInsightsView() {
                         {completionStats?.total ? `${Math.round((completionStats.completed / completionStats.total) * 100)}%` : ''}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-primary-50 p-3 text-center dark:bg-primary-900/30">
-                      <p className="flex items-center justify-center gap-1 text-lg font-semibold text-primary-700 dark:text-primary-200">
+                    <div className="rounded-xl border border-gray-100 p-3 text-center dark:border-primary-900/50">
+                      <p className="flex items-center justify-center gap-1 text-lg font-semibold text-gray-900 dark:text-ink-dark">
                         {(() => {
                           const all = distribution.buckets.flatMap((b) => b.employees);
                           return all.length ? (all.reduce((s, e) => s + e.avg_rating, 0) / all.length).toFixed(2) : 'N/A';
@@ -345,7 +363,7 @@ function HrPeerInsightsView() {
                           <Star key={i} size={11} className="fill-primary-500 text-primary-500" />
                         ))}
                       </div>
-                      <p className="text-xs text-primary-600 dark:text-primary-300">Average Overall Rating</p>
+                      <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Average Overall Rating</p>
                     </div>
                     <div className="rounded-xl border border-gray-100 p-3 text-center dark:border-primary-900/50">
                       {(() => {
@@ -495,11 +513,11 @@ function HrPeerInsightsView() {
           ) : (
             <div className="space-y-3">
               {[
-                { rating: 5, label: 'Excellent', color: '#22c55e' },
-                { rating: 4, label: 'Very Good', color: '#3b82f6' },
-                { rating: 3, label: 'Good', color: '#a855f7' },
-                { rating: 2, label: 'Needs Improvement', color: '#f97316' },
-                { rating: 1, label: 'Poor', color: '#E83E93' },
+                { rating: 5, label: 'Excellent' },
+                { rating: 4, label: 'Very Good' },
+                { rating: 3, label: 'Good' },
+                { rating: 2, label: 'Needs Improvement' },
+                { rating: 1, label: 'Poor' },
               ].map((meta) => {
                 const b = distribution.buckets.find((x) => x.rating === meta.rating) || { count: 0 };
                 const pct = distribution.totalEmployees > 0 ? Math.round((b.count / distribution.totalEmployees) * 100) : 0;
@@ -509,7 +527,7 @@ function HrPeerInsightsView() {
                       {meta.rating}/5 <span className="text-xs">({meta.label})</span>
                     </span>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-primary-900/30">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: meta.color }} />
+                      <div className="h-full rounded-full bg-primary-500" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="w-14 flex-shrink-0 text-right text-xs text-ink-light/50 dark:text-ink-dark/50">
                       {b.count} ({pct}%)
@@ -522,23 +540,33 @@ function HrPeerInsightsView() {
         </div>
 
         <div className="card card-reviews">
-          <h3 className="mb-4 font-display text-base font-semibold">Rating Trend</h3>
-          {ratingTrend === null ? (
+          <h3 className="mb-1 font-display text-base font-semibold">Category-wise Average Ratings</h3>
+          <p className="mb-4 text-xs text-ink-light/50 dark:text-ink-dark/50">
+            How the org scores on each of the 7 feedback dimensions, averaged across every submitted review.
+          </p>
+          {categoryAverages === null ? (
             <Skeleton className="h-[220px] w-full" />
-          ) : ratingTrend.length === 0 ? (
+          ) : categoryAverages.every((c) => c.average === null) ? (
             <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-              No completed reviews yet — the trend will appear here once feedback starts coming in.
+              No completed reviews yet — this will fill in once feedback starts coming in.
             </p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={ratingTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f6c0df" />
-                <XAxis dataKey="month" fontSize={11} />
-                <YAxis domain={[0, 5]} fontSize={12} allowDecimals={false} />
-                <Tooltip />
-                <Line type="monotone" dataKey="avg_rating" stroke="#E83E93" strokeWidth={2} dot={{ fill: '#E83E93' }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="space-y-3">
+              {categoryAverages.map((c) => (
+                <div key={c.key} className="flex items-center gap-3 text-sm">
+                  <span className="w-32 flex-shrink-0 truncate text-ink-light/60 dark:text-ink-dark/60">{c.label}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-primary-900/30">
+                    <div
+                      className="h-full rounded-full bg-primary-500"
+                      style={{ width: c.average != null ? `${(c.average / 5) * 100}%` : '0%' }}
+                    />
+                  </div>
+                  <span className="w-12 flex-shrink-0 text-right text-xs font-medium text-ink-light/60 dark:text-ink-dark/60">
+                    {c.average != null ? `${c.average.toFixed(1)}/5` : 'N/A'}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

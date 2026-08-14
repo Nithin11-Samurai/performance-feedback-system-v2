@@ -77,6 +77,7 @@ router.get('/rating-distribution/export/pdf', adminOnly, peerInsightController.e
 router.get('/rating-trend', adminOnly, peerInsightController.getRatingTrend);
 router.get('/projects-with-pending', adminOnly, peerInsightController.getProjectsWithPendingFeedback);
 router.get('/feedback-completion-stats', adminOnly, peerInsightController.getFeedbackCompletionStats);
+router.get('/category-averages', adminOnly, peerInsightController.getCategoryAverages);
 router.get('/top-rated-employees', adminOnly, peerInsightController.getTopRatedEmployees);
 router.get('/employees/:subjectId/cross-project', adminOnly, peerInsightController.getCrossProjectBreakdown);
 router.get('/employees/:subjectId/overall-summary', adminOnly, peerInsightController.getOverallSummary);

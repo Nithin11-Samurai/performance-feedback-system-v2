@@ -242,6 +242,18 @@ async function getRatingDistribution(requesterUser, groupId) {
 }
 
 /** Completed-vs-total feedback counts, for the Overview tab's secondary stats row. */
+/** Average score per feedback category, across all submitted feedback (org-wide or one project) - powers the category-wise breakdown that replaces the old rating-trend chart. */
+async function getCategoryAverages(requesterUser, groupId) {
+  assertAdminTier(requesterUser);
+  const allScores = await peerInsightModel.listCategoryScoresForCompletedFeedback(groupId);
+
+  return FEEDBACK_CATEGORIES.map((cat) => {
+    const values = allScores.map((s) => s?.[cat.key]?.score).filter((v) => typeof v === 'number');
+    const average = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+    return { key: cat.key, label: cat.label, average, responseCount: values.length };
+  });
+}
+
 async function getFeedbackCompletionStats(requesterUser, groupId) {
   assertAdminTier(requesterUser);
   return peerInsightModel.getFeedbackCompletionStats(groupId);
@@ -616,6 +628,7 @@ module.exports = {
   getRatingTrend,
   getProjectsWithPendingFeedback,
   getFeedbackCompletionStats,
+  getCategoryAverages,
   getTopRatedEmployees,
   remindReviewer,
   remindAllPendingForRound,

@@ -32,6 +32,11 @@ export async function getFeedbackCompletionStats(groupId) {
   return data.data.stats;
 }
 
+export async function getCategoryAverages(groupId) {
+  const { data } = await api.get('/peer-insights/category-averages', { params: groupId ? { groupId } : {} });
+  return data.data.categories;
+}
+
 export async function getTopRatedEmployees(limit = 5, groupId) {
   const { data } = await api.get('/peer-insights/top-rated-employees', { params: groupId ? { limit, groupId } : { limit } });
   return data.data.employees;

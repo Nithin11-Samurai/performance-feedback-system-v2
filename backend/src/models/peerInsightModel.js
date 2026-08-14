@@ -274,6 +274,24 @@ async function listActiveRoundsWithPending() {
   return result.rows;
 }
 
+/** Every submitted feedback's raw category_scores (org-wide or one project) - powers the category-wise average ratings breakdown. */
+async function listCategoryScoresForCompletedFeedback(groupId) {
+  const params = [];
+  let groupFilter = '';
+  if (groupId) {
+    params.push(groupId);
+    groupFilter = 'AND r.project_group_id = $1';
+  }
+  const result = await query(
+    `SELECT f.category_scores
+     FROM peer_insight_feedback f
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     WHERE f.status = 'submitted' AND f.category_scores IS NOT NULL ${groupFilter}`,
+    params
+  );
+  return result.rows.map((r) => r.category_scores);
+}
+
 /** Total submitted feedback count and total assignment count org-wide (or for one project) - powers the participation-rate / completed-reviews stats. */
 async function getFeedbackCompletionStats(groupId) {
   const params = [];
@@ -550,6 +568,7 @@ module.exports = {
   listAssignmentsWithStatusForRound,
   getOrgWideRatingSummary,
   getFeedbackCompletionStats,
+  listCategoryScoresForCompletedFeedback,
   listActiveRoundsWithPending,
   getMonthlyRatingTrend,
   upsertSummary,

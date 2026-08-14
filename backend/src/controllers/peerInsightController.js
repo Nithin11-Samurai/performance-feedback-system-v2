@@ -131,6 +131,11 @@ const getFeedbackCompletionStats = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { stats } });
 });
 
+const getCategoryAverages = asyncHandler(async (req, res) => {
+  const categories = await peerInsightService.getCategoryAverages(req.user, req.query.groupId || undefined);
+  res.json({ success: true, data: { categories } });
+});
+
 const getTopRatedEmployees = asyncHandler(async (req, res) => {
   const employees = await peerInsightService.getTopRatedEmployees(req.user, Number(req.query.limit) || 5, req.query.groupId || undefined);
   res.json({ success: true, data: { employees } });
@@ -282,6 +287,7 @@ module.exports = {
   getRatingTrend,
   getProjectsWithPendingFeedback,
   getFeedbackCompletionStats,
+  getCategoryAverages,
   getTopRatedEmployees,
   exportRatingDistributionExcel,
   exportRatingDistributionPdf,
