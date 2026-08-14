@@ -87,6 +87,8 @@ function HrPeerInsightsView() {
   const [totalEmployeeCount, setTotalEmployeeCount] = useState(null);
   const [expandedBucket, setExpandedBucket] = useState(null);
   const [bucketFilter, setBucketFilter] = useState('');
+  const [topRatedModalOpen, setTopRatedModalOpen] = useState(false);
+  const [allRatedEmployees, setAllRatedEmployees] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -428,7 +430,14 @@ function HrPeerInsightsView() {
                     <div className="mb-3 flex items-center justify-between">
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Top Rated Employees</h4>
                       <button
-                        onClick={() => setActiveTab('employee')}
+                        onClick={() => {
+                          setTopRatedModalOpen(true);
+                          setAllRatedEmployees(null);
+                          peerInsightService
+                            .getTopRatedEmployees(100000, overviewProjectFilter || undefined)
+                            .then(setAllRatedEmployees)
+                            .catch(() => setAllRatedEmployees([]));
+                        }}
                         className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
                       >
                         View all
@@ -461,49 +470,128 @@ function HrPeerInsightsView() {
                 </div>
               </div>
             )}
-
-                {expandedBucket !== null &&
-                  (() => {
-                    const bucket = distribution.buckets.find((b) => b.rating === expandedBucket);
-                    const filtered = bucket.employees
-                      .filter((e) => `${e.first_name} ${e.last_name}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
-                      .sort((a, b) => a.first_name.localeCompare(b.first_name));
-                    return (
-                      <div className="mt-3 rounded-xl border border-primary-50 p-3 dark:border-primary-900/50">
-                        {bucket.employees.length === 0 ? (
-                          <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
-                        ) : (
-                          <>
-                            {bucket.employees.length > 8 && (
-                              <input
-                                value={bucketFilter}
-                                onChange={(e) => setBucketFilter(e.target.value)}
-                                placeholder={`Filter ${bucket.count} names…`}
-                                className="input mb-2 text-sm"
-                              />
-                            )}
-                            <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
-                              {filtered.map((e) => (
-                                <li key={e.id} className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-primary-50/60 dark:hover:bg-primary-900/30">
-                                  <span>
-                                    {e.first_name} {e.last_name}
-                                  </span>
-                                  <span className="text-xs text-ink-light/45 dark:text-ink-dark/45">avg {e.avg_rating}/5</span>
-                                </li>
-                              ))}
-                            </ul>
-                            {filtered.length === 0 && (
-                              <p className="py-2 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-                                No names match "{bucketFilter}".
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })()}
           </div>
       </div>
+
+      <Modal
+        open={expandedBucket !== null}
+        onClose={() => {
+          setExpandedBucket(null);
+          setBucketFilter('');
+        }}
+        title={expandedBucket !== null ? `${expandedBucket}/5 rated employees` : ''}
+        size="lg"
+      >
+        {expandedBucket !== null &&
+          (() => {
+            const bucket = distribution.buckets.find((b) => b.rating === expandedBucket);
+            const filtered = bucket.employees
+              .filter((e) => `${e.first_name} ${e.last_name}`.toLowerCase().includes(bucketFilter.trim().toLowerCase()))
+              .sort((a, b) => a.first_name.localeCompare(b.first_name));
+            return (
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  {bucket.employees.length > 8 ? (
+                    <input
+                      value={bucketFilter}
+                      onChange={(e) => setBucketFilter(e.target.value)}
+                      placeholder={`Filter ${bucket.count} names…`}
+                      className="input text-sm"
+                    />
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    onClick={() => peerInsightService.exportRatingDistributionExcel(overviewProjectFilter || undefined, expandedBucket)}
+                    className="btn-secondary flex-shrink-0 text-xs"
+                  >
+                    <FileSpreadsheet size={13} /> Export Excel
+                  </button>
+                </div>
+                {bucket.employees.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">No employees in this bucket.</p>
+                ) : (
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-primary-100 text-left text-xs uppercase text-ink-light/40 dark:border-primary-900/50 dark:text-ink-dark/40">
+                          <th className="pb-2">Name</th>
+                          <th className="pb-2">Role</th>
+                          <th className="pb-2 text-right">Average Rating</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((e) => (
+                          <tr key={e.id} className="border-b border-primary-50 last:border-0 dark:border-primary-900/40">
+                            <td className="py-2.5 font-medium text-gray-900 dark:text-ink-dark">
+                              {e.first_name} {e.last_name}
+                            </td>
+                            <td className="py-2.5 text-ink-light/60 dark:text-ink-dark/60">
+                              {e.job_title || 'N/A'}
+                              {e.department ? ` · ${e.department}` : ''}
+                            </td>
+                            <td className="py-2.5 text-right text-primary-600 dark:text-primary-300">{e.avg_rating}/5</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {filtered.length === 0 && (
+                      <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+                        No names match "{bucketFilter}".
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+      </Modal>
+
+      <Modal open={topRatedModalOpen} onClose={() => setTopRatedModalOpen(false)} title="Top Rated Employees" size="lg">
+        <div className="mb-3 flex justify-end">
+          <button
+            onClick={() => peerInsightService.exportTopRatedEmployeesExcel(overviewProjectFilter || undefined)}
+            className="btn-secondary text-xs"
+          >
+            <FileSpreadsheet size={13} /> Export Excel
+          </button>
+        </div>
+        {allRatedEmployees === null ? (
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        ) : allRatedEmployees.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">No submitted feedback yet.</p>
+        ) : (
+          <div className="max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-primary-100 text-left text-xs uppercase text-ink-light/40 dark:border-primary-900/50 dark:text-ink-dark/40">
+                  <th className="pb-2">Name</th>
+                  <th className="pb-2">Role</th>
+                  <th className="pb-2 text-right">Average Rating</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allRatedEmployees.map((e) => (
+                  <tr key={e.id} className="border-b border-primary-50 last:border-0 dark:border-primary-900/40">
+                    <td className="py-2.5 font-medium text-gray-900 dark:text-ink-dark">
+                      {e.first_name} {e.last_name}
+                    </td>
+                    <td className="py-2.5 text-ink-light/60 dark:text-ink-dark/60">
+                      {e.job_title || 'N/A'}
+                      {e.department ? ` · ${e.department}` : ''}
+                    </td>
+                    <td className="py-2.5 text-right text-primary-600 dark:text-primary-300">{e.avg_rating}/5</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="card card-reviews">

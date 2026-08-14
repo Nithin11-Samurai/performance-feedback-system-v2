@@ -42,11 +42,24 @@ export async function getTopRatedEmployees(limit = 5, groupId) {
   return data.data.employees;
 }
 
-export async function exportRatingDistributionExcel(groupId) {
+export async function exportRatingDistributionExcel(groupId, rating) {
+  const params = [];
+  if (groupId) params.push(`groupId=${groupId}`);
+  if (rating) params.push(`rating=${rating}`);
+  const url = `/peer-insights/rating-distribution/export/excel${params.length ? `?${params.join('&')}` : ''}`;
+  const filename = rating
+    ? `360-rating-${rating}-of-5-employees.xlsx`
+    : groupId
+      ? '360-rating-distribution-project.xlsx'
+      : '360-rating-distribution.xlsx';
+  await downloadBlob(url, filename);
+}
+
+export async function exportTopRatedEmployeesExcel(groupId) {
   const url = groupId
-    ? `/peer-insights/rating-distribution/export/excel?groupId=${groupId}`
-    : '/peer-insights/rating-distribution/export/excel';
-  await downloadBlob(url, groupId ? '360-rating-distribution-project.xlsx' : '360-rating-distribution.xlsx');
+    ? `/peer-insights/top-rated-employees/export/excel?groupId=${groupId}`
+    : '/peer-insights/top-rated-employees/export/excel';
+  await downloadBlob(url, 'top-rated-employees.xlsx');
 }
 
 // Item 2: the actual 360° Feedback question set.

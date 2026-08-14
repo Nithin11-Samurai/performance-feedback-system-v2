@@ -321,12 +321,12 @@ async function getOrgWideRatingSummary(groupId) {
     groupFilter = 'AND r.project_group_id = $1';
   }
   const result = await query(
-    `SELECT s.id, s.first_name, s.last_name, ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
+    `SELECT s.id, s.first_name, s.last_name, s.job_title, s.department, ROUND(AVG(f.rating)::numeric, 1)::float AS avg_rating
      FROM peer_insight_feedback f
      JOIN users s ON s.id = f.subject_id
      JOIN peer_insight_rounds r ON r.id = f.round_id
      WHERE f.status = 'submitted' AND f.rating IS NOT NULL ${groupFilter}
-     GROUP BY s.id, s.first_name, s.last_name
+     GROUP BY s.id, s.first_name, s.last_name, s.job_title, s.department
      ORDER BY avg_rating DESC`,
     params
   );

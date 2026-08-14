@@ -143,11 +143,26 @@ const getTopRatedEmployees = asyncHandler(async (req, res) => {
 
 const exportRatingDistributionExcel = asyncHandler(async (req, res) => {
   const groupId = req.query.groupId || undefined;
+  const onlyRating = req.query.rating ? Number(req.query.rating) : undefined;
   const distribution = await peerInsightService.getRatingDistribution(req.user, groupId);
-  const workbook = excelGenerator.buildRatingDistributionWorkbook(distribution);
-  const filename = groupId ? `360-rating-distribution-project.xlsx` : `360-rating-distribution.xlsx`;
+  const workbook = excelGenerator.buildRatingDistributionWorkbook(distribution, onlyRating);
+  const filename = onlyRating
+    ? `360-rating-${onlyRating}-of-5-employees.xlsx`
+    : groupId
+      ? `360-rating-distribution-project.xlsx`
+      : `360-rating-distribution.xlsx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
+const exportTopRatedEmployeesExcel = asyncHandler(async (req, res) => {
+  const groupId = req.query.groupId || undefined;
+  const employees = await peerInsightService.getTopRatedEmployees(req.user, 100000, groupId);
+  const workbook = excelGenerator.buildEmployeeRatingWorkbook(employees, 'Top Rated Employees');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="top-rated-employees.xlsx"');
   await workbook.xlsx.write(res);
   res.end();
 });
@@ -290,6 +305,7 @@ module.exports = {
   getCategoryAverages,
   getTopRatedEmployees,
   exportRatingDistributionExcel,
+  exportTopRatedEmployeesExcel,
   exportRatingDistributionPdf,
   listMyAssignments,
   listAllMyPendingAssignments,
