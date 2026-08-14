@@ -2179,11 +2179,19 @@ function EmployeePeerInsightsView() {
                 <Badge tone="primary">New</Badge>
               )}
             </div>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-              {expandedSummaryId === 'overall' || overallSummary.summary_text.length <= 320
+            <div className="text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+              {(expandedSummaryId === 'overall' || overallSummary.summary_text.length <= 320
                 ? overallSummary.summary_text
-                : `${overallSummary.summary_text.slice(0, 320)}…`}
-            </p>
+                : `${overallSummary.summary_text.slice(0, 320)}…`
+              )
+                .split(/\n\s*\n/)
+                .filter((para) => para.trim().length > 0)
+                .map((para, i) => (
+                  <p key={i} className={i > 0 ? 'mt-2' : ''}>
+                    {para.trim()}
+                  </p>
+                ))}
+            </div>
             {overallSummary.summary_text.length > 320 && (
               <button
                 onClick={() => setExpandedSummaryId(expandedSummaryId === 'overall' ? null : 'overall')}
@@ -2219,9 +2227,16 @@ function EmployeePeerInsightsView() {
                     </p>
                     {isRecent && <Badge tone="primary">New</Badge>}
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
-                    {isExpanded || s.summary_text.length <= 220 ? s.summary_text : `${s.summary_text.slice(0, 220)}…`}
-                  </p>
+                  <div className="text-sm leading-relaxed text-ink-light/90 dark:text-ink-dark/90">
+                    {(isExpanded || s.summary_text.length <= 220 ? s.summary_text : `${s.summary_text.slice(0, 220)}…`)
+                      .split(/\n\s*\n/)
+                      .filter((para) => para.trim().length > 0)
+                      .map((para, i) => (
+                        <p key={i} className={i > 0 ? 'mt-2' : ''}>
+                          {para.trim()}
+                        </p>
+                      ))}
+                  </div>
                   {s.summary_text.length > 220 && (
                     <button
                       onClick={() => setExpandedSummaryId(isExpanded ? null : s.id)}
