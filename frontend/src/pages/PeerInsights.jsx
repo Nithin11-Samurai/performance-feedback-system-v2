@@ -679,6 +679,7 @@ function HrPeerInsightsView() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groups
               .filter((g) => g.name.toLowerCase().includes(groupFilter.trim().toLowerCase()))
+              .sort((a, b) => a.name.localeCompare(b.name))
               .map((g) => (
                 <div
                   key={g.id}
@@ -1612,6 +1613,7 @@ function SubjectCuration({ round, subject, onBack }) {
   const [saving, setSaving] = useState(false);
   const [releasing, setReleasing] = useState(false);
   const [schema, setSchema] = useState(null);
+  const [expandedReviewerId, setExpandedReviewerId] = useState(null);
 
   useEffect(() => {
     peerInsightService.getFeedbackFormSchema().then(setSchema);
@@ -1718,42 +1720,56 @@ function SubjectCuration({ round, subject, onBack }) {
 
             {rawFeedback && (
               <div className="space-y-2">
-                {rawFeedback.map((f) => (
-                  <div key={f.id} className="rounded-md bg-primary-50/50 p-3 text-sm dark:bg-primary-900/20">
-                    <p className="mb-3 font-medium text-gray-900 dark:text-ink-dark">
-                      {f.reviewer_first_name} {f.reviewer_last_name}
-                    </p>
-                    <div className="space-y-4">
-                      {schema &&
-                        f.category_scores &&
-                        schema.categories.map((c, i) => {
-                          const entry = f.category_scores[c.key];
-                          if (!entry?.score) return null;
-                          const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
-                          return (
-                            <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
-                              <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
-                              <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{categoryStatement(c)}</p>
-                              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
-                                <Check size={12} /> {levelLabel}
-                              </span>
-                              {entry.comment && (
-                                <p className="mt-1.5 text-xs italic text-ink-light/60 dark:text-ink-dark/60">"{entry.comment}"</p>
-                              )}
+                {rawFeedback.map((f) => {
+                  const isOpen = expandedReviewerId === f.id;
+                  return (
+                    <div key={f.id} className="rounded-md bg-primary-50/50 dark:bg-primary-900/20">
+                      <button
+                        onClick={() => setExpandedReviewerId(isOpen ? null : f.id)}
+                        className="flex w-full items-center justify-between gap-2 p-3 text-left"
+                      >
+                        <span className="text-sm font-medium text-gray-900 dark:text-ink-dark">
+                          {f.reviewer_first_name} {f.reviewer_last_name}
+                        </span>
+                        <ChevronDown
+                          size={14}
+                          className={`flex-shrink-0 text-ink-light/40 transition-transform dark:text-ink-dark/40 ${isOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-4 px-3 pb-4 text-sm">
+                          {schema &&
+                            f.category_scores &&
+                            schema.categories.map((c, i) => {
+                              const entry = f.category_scores[c.key];
+                              if (!entry?.score) return null;
+                              const levelLabel = schema.likertScale.find((l) => l.value === entry.score)?.label || entry.score;
+                              return (
+                                <div key={c.key} className={i > 0 ? 'border-t border-primary-100 pt-3 dark:border-primary-900/50' : ''}>
+                                  <p className="font-medium text-gray-900 dark:text-ink-dark">{c.label}</p>
+                                  <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">{categoryStatement(c)}</p>
+                                  <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                                    <Check size={12} /> {levelLabel}
+                                  </span>
+                                  {entry.comment && (
+                                    <p className="mt-1.5 text-xs italic text-ink-light/60 dark:text-ink-dark/60">"{entry.comment}"</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          {f.comments && (
+                            <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
+                              <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
+                              <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">"{f.comments}"</p>
                             </div>
-                          );
-                        })}
-                      {f.comments && (
-                        <div className="border-t border-primary-100 pt-3 dark:border-primary-900/50">
-                          <p className="font-medium text-gray-900 dark:text-ink-dark">Final thoughts</p>
-                          <p className="mt-0.5 text-ink-light/70 dark:text-ink-dark/70">"{f.comments}"</p>
+                          )}
+                          {f.strengths && <p>Strengths: {f.strengths}</p>}
+                          {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
                         </div>
                       )}
-                      {f.strengths && <p>Strengths: {f.strengths}</p>}
-                      {f.improvement_areas && <p>Areas for improvement: {f.improvement_areas}</p>}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export default function Modal({ open, onClose, title, children, size = 'md' }) {
@@ -14,7 +15,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
 
   const widthClass = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl' }[size] || 'max-w-lg';
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onMouseDown={onClose}>
       <div
         className={`w-full ${widthClass} rounded-card bg-surface-light p-6 shadow-card dark:bg-surface-dark`}
@@ -32,6 +33,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
