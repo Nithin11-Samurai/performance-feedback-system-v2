@@ -126,7 +126,7 @@ export default function EmployeeDashboardView() {
               <li key={p.id}>
                 <button
                   onClick={() => handleOpenProject(p)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-primary-50 p-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+                  className="flex w-full items-center gap-3 rounded-xl border-l-[3px] border-primary-400 bg-primary-50/50 p-3 text-left transition-colors hover:bg-primary-50 dark:border-primary-500 dark:bg-primary-900/20 dark:hover:bg-primary-900/30"
                 >
                   <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
                     <Briefcase size={16} />

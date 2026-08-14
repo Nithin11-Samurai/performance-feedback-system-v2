@@ -27,7 +27,6 @@ import PeerInsights from './pages/PeerInsights';
 import Settings from './pages/Settings';
 import Permissions from './pages/Permissions';
 import SkillsCertsOverview from './pages/SkillsCertsOverview';
-import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import { ROLES, ADMIN_TIER_ROLES } from './utils/roles';
 
@@ -91,7 +90,7 @@ function AppShell() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/notifications" element={<NotificationsCenter />} />
             <Route path="/peer-insights" element={<PeerInsights />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile" element={<Navigate to="/dashboard" replace />} />
             <Route
               path="/reviews"
               element={

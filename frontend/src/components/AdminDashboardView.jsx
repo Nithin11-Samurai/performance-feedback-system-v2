@@ -46,6 +46,7 @@ export default function AdminDashboardView() {
 
   const [peerGroups, setPeerGroups] = useState(null);
   const [ratingDistribution, setRatingDistribution] = useState(null);
+  const [topRated, setTopRated] = useState(null);
 
   useEffect(() => {
     if (showReviews) {
@@ -53,6 +54,10 @@ export default function AdminDashboardView() {
     } else {
       peerInsightService.listGroups().then(setPeerGroups);
       peerInsightService.getRatingDistribution().then(setRatingDistribution);
+      peerInsightService
+        .getTopRatedEmployees(5)
+        .then(setTopRated)
+        .catch(() => setTopRated([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showReviews]);
@@ -203,13 +208,45 @@ export default function AdminDashboardView() {
         ) : (
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-primary-900/50 dark:bg-surface-dark">
             <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-ink-dark">360° Feedback overview</h3>
-            <p className="text-sm text-gray-500 dark:text-ink-dark/60">
-              {peerGroups === null
-                ? 'Loading…'
-                : peerGroups.length === 0
-                  ? 'No project groups created yet.'
-                  : `${peerGroups.length} project group${peerGroups.length === 1 ? '' : 's'} running anonymous 360° feedback.`}
-            </p>
+            {ratingDistribution === null ? (
+              <p className="text-sm text-gray-500 dark:text-ink-dark/60">Loading…</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 dark:text-ink-dark/60">
+                  {peerGroups === null
+                    ? ''
+                    : peerGroups.length === 0
+                      ? 'No project groups created yet.'
+                      : `${peerGroups.length} project group${peerGroups.length === 1 ? '' : 's'} running anonymous 360° feedback.`}
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-primary-50/60 p-3 dark:bg-primary-900/20">
+                    <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">
+                      {ratingDistribution.totalEmployees}
+                      {kpis?.totalEmployees ? (
+                        <span className="text-xs font-normal text-ink-light/50 dark:text-ink-dark/50">
+                          {' '}
+                          / {kpis.totalEmployees}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Employees rated</p>
+                  </div>
+                  <div className="rounded-xl bg-violet-50 p-3 dark:bg-violet-900/20">
+                    <p className="flex items-center gap-1 text-lg font-semibold text-gray-900 dark:text-ink-dark">
+                      <Star size={14} className="fill-violet-400 text-violet-400" />
+                      {(() => {
+                        const withRatings = ratingDistribution.buckets.flatMap((b) => b.employees);
+                        if (withRatings.length === 0) return 'N/A';
+                        const avg = withRatings.reduce((sum, e) => sum + e.avg_rating, 0) / withRatings.length;
+                        return `${avg.toFixed(1)}/5`;
+                      })()}
+                    </p>
+                    <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Org average rating</p>
+                  </div>
+                </div>
+              </>
+            )}
             <Link
               to="/peer-insights"
               className="mt-4 block rounded-full border border-primary-200 py-2 text-center text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50 dark:border-primary-800 dark:text-primary-300 dark:hover:bg-primary-900/40"
@@ -220,8 +257,42 @@ export default function AdminDashboardView() {
         )}
 
         <RecentActivityWidget activity={widgets?.recentActivity || []} loading={loading} />
-        {showReviews && (
+        {showReviews ? (
           <UpcomingReviewsWidget cycles={widgets?.upcomingReviews || []} loading={loading} viewAllLink="/admin/cycles" />
+        ) : (
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-primary-900/50 dark:bg-surface-dark">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Top Rated Employees</h3>
+              <Link to="/peer-insights" className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300">
+                View all
+              </Link>
+            </div>
+            {topRated === null ? (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="skeleton h-8 w-full" />
+                ))}
+              </div>
+            ) : topRated.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400 dark:text-ink-dark/50">No submitted feedback yet.</p>
+            ) : (
+              <ul className="space-y-1">
+                {topRated.map((e, i) => (
+                  <li
+                    key={e.id}
+                    className={`flex items-center justify-between py-2 ${i > 0 ? 'border-t border-gray-100 dark:border-primary-900/40' : ''}`}
+                  >
+                    <span className="truncate text-sm font-medium text-gray-800 dark:text-ink-dark">
+                      {e.first_name} {e.last_name}
+                    </span>
+                    <span className="flex-shrink-0 text-sm font-semibold text-primary-600 dark:text-primary-300">
+                      {e.avg_rating}/5
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
     </div>

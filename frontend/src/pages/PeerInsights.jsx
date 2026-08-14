@@ -27,6 +27,7 @@ import { useToast } from '../context/ToastContext';
 import { isAdminTier } from '../utils/roles';
 import * as peerInsightService from '../services/peerInsightService';
 import * as dashboardService from '../services/dashboardService';
+import * as userService from '../services/userService';
 import { generateStructuredSummary } from '../utils/summaryGenerator';
 import EmployeePicker from '../components/EmployeePicker';
 import Modal from '../components/Modal';
@@ -81,6 +82,8 @@ function HrPeerInsightsView() {
   const [pendingProjects, setPendingProjects] = useState(null);
   const [remindingRoundId, setRemindingRoundId] = useState(null);
   const [overviewProjectFilter, setOverviewProjectFilter] = useState('');
+  const [completionStats, setCompletionStats] = useState(null);
+  const [totalEmployeeCount, setTotalEmployeeCount] = useState(null);
   const [expandedBucket, setExpandedBucket] = useState(null);
   const [bucketFilter, setBucketFilter] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -99,6 +102,16 @@ function HrPeerInsightsView() {
       .getTopRatedEmployees(5, overviewProjectFilter || undefined)
       .then(setTopRated)
       .catch(() => setTopRated([]));
+    peerInsightService
+      .getFeedbackCompletionStats(overviewProjectFilter || undefined)
+      .then(setCompletionStats)
+      .catch(() => setCompletionStats({ completed: 0, total: 0 }));
+    if (totalEmployeeCount === null) {
+      userService
+        .listUsersPaged({ limit: 1 })
+        .then(({ total }) => setTotalEmployeeCount(total))
+        .catch(() => setTotalEmployeeCount(0));
+    }
   }, [activeTab, overviewProjectFilter]);
 
   useEffect(() => {
@@ -209,74 +222,225 @@ function HrPeerInsightsView() {
       {activeTab === 'overview' && (
       <>
       <div className="card card-reviews">
-        <h3 className="mb-1 flex items-center gap-2 font-display text-base font-semibold">
-          <BarChart3 size={17} className="text-primary-600" /> 360° Feedback Rating Overview
-        </h3>
-
-        <div className="mt-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="flex items-center gap-2 font-display text-base font-semibold">
+            <BarChart3 size={17} className="text-primary-600" /> 360° Feedback Rating Overview
+          </h3>
+          <div className="flex items-center gap-2">
             <select
               value={overviewProjectFilter}
               onChange={(e) => setOverviewProjectFilter(e.target.value)}
-              className="input mb-4 w-auto text-sm"
+              className="input w-auto text-sm"
             >
-              <option value="">All projects</option>
+              <option value="">All Projects</option>
               {(groups || []).map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => peerInsightService.exportRatingDistributionExcel(overviewProjectFilter || undefined)}
+              className="btn-secondary text-xs"
+            >
+              <FileSpreadsheet size={13} /> View Reports
+            </button>
+          </div>
+        </div>
 
+        <div className="mt-4">
             {distribution === null ? (
               <Skeleton className="h-32 w-full" />
             ) : (
-              <>
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-semibold leading-6 text-primary-700 dark:text-primary-300">
-                      {distribution.totalEmployees}
-                    </p>
-                    <p className="text-xs text-ink-light/55 dark:text-ink-dark/55">
-                      employee{distribution.totalEmployees === 1 ? '' : 's'} with submitted 360° Feedback
-                      {overviewProjectFilter ? '' : ', org-wide'}
-                    </p>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="space-y-4 lg:col-span-2">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    {[
+                      { rating: 5, label: 'Excellent', color: '#22c55e', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+                      { rating: 4, label: 'Very Good', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+                      { rating: 3, label: 'Good', color: '#a855f7', bg: 'bg-violet-50 dark:bg-violet-900/20' },
+                      { rating: 2, label: 'Needs Improvement', color: '#f97316', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+                      { rating: 1, label: 'Poor', color: '#E83E93', bg: 'bg-primary-50 dark:bg-primary-900/20' },
+                    ].map((meta) => {
+                      const b = distribution.buckets.find((x) => x.rating === meta.rating) || { count: 0, employees: [] };
+                      const pct = distribution.totalEmployees > 0 ? Math.round((b.count / distribution.totalEmployees) * 100) : 0;
+                      const isSelected = expandedBucket === meta.rating;
+                      return (
+                        <button
+                          key={meta.rating}
+                          onClick={() => {
+                            setExpandedBucket(isSelected ? null : meta.rating);
+                            setBucketFilter('');
+                          }}
+                          className={`rounded-2xl border p-3 text-center transition-all ${
+                            isSelected
+                              ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/40'
+                              : `border-gray-100 ${meta.bg} hover:-translate-y-0.5 hover:shadow-sm dark:border-primary-900/50`
+                          }`}
+                        >
+                          <p className="text-sm font-semibold text-gray-900 dark:text-ink-dark">
+                            {meta.rating}/5 <span className="font-normal text-ink-light/50 dark:text-ink-dark/50">{meta.label}</span>
+                          </p>
+                          <div className="my-2 flex justify-center">
+                            <RadialProgress percent={pct} size={72} strokeWidth={7} color={meta.color} />
+                          </div>
+                          <p className="mb-2 text-xs text-ink-light/50 dark:text-ink-dark/50">
+                            {b.count} Employee{b.count === 1 ? '' : 's'}
+                          </p>
+                          {b.employees.length > 0 && (
+                            <div className="flex justify-center -space-x-1.5">
+                              {b.employees.slice(0, 4).map((e) => (
+                                <div
+                                  key={e.id}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[9px] font-semibold text-white dark:border-surface-dark"
+                                  style={{ backgroundColor: meta.color }}
+                                >
+                                  {e.first_name?.[0]}
+                                </div>
+                              ))}
+                              {b.employees.length > 4 && (
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-gray-200 text-[8px] font-semibold text-gray-600 dark:border-surface-dark dark:bg-primary-900">
+                                  +{b.employees.length - 4}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <button
-                    onClick={() => peerInsightService.exportRatingDistributionExcel(overviewProjectFilter || undefined)}
-                    className="btn-secondary text-xs"
-                  >
-                    <FileSpreadsheet size={13} /> Export Excel
-                  </button>
+
+                  {/* --- Secondary stats row --- */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    <div className="rounded-xl border border-gray-100 p-3 text-center dark:border-primary-900/50">
+                      <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{totalEmployeeCount ?? '—'}</p>
+                      <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Total Employees</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 p-3 text-center dark:border-primary-900/50">
+                      <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{distribution.totalEmployees}</p>
+                      <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                        Employees Rated{' '}
+                        {totalEmployeeCount ? `${Math.round((distribution.totalEmployees / totalEmployeeCount) * 100)}%` : ''}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 p-3 text-center dark:border-primary-900/50">
+                      <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{completionStats?.completed ?? '—'}</p>
+                      <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                        Completed Reviews{' '}
+                        {completionStats?.total ? `${Math.round((completionStats.completed / completionStats.total) * 100)}%` : ''}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-primary-50 p-3 text-center dark:bg-primary-900/30">
+                      <p className="flex items-center justify-center gap-1 text-lg font-semibold text-primary-700 dark:text-primary-200">
+                        {(() => {
+                          const all = distribution.buckets.flatMap((b) => b.employees);
+                          return all.length ? (all.reduce((s, e) => s + e.avg_rating, 0) / all.length).toFixed(2) : 'N/A';
+                        })()}
+                        /5
+                      </p>
+                      <div className="flex justify-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star key={i} size={11} className="fill-primary-500 text-primary-500" />
+                        ))}
+                      </div>
+                      <p className="text-xs text-primary-600 dark:text-primary-300">Average Overall Rating</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 p-3 text-center dark:border-primary-900/50">
+                      {(() => {
+                        const top = [...distribution.buckets].sort((a, b) => b.count - a.count)[0];
+                        const labels = { 5: 'Excellent', 4: 'Very Good', 3: 'Good', 2: 'Needs Improvement', 1: 'Poor' };
+                        return (
+                          <>
+                            <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">
+                              {top && top.count > 0 ? `${top.rating}/5` : 'N/A'}
+                            </p>
+                            <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                              Most Common{top && top.count > 0 ? ` · ${labels[top.rating]}` : ''}
+                            </p>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-5 gap-2">
-                  {distribution.buckets.map((b) => {
-                    const pct = distribution.totalEmployees > 0 ? (b.count / distribution.totalEmployees) * 100 : 0;
-                    const isSelected = expandedBucket === b.rating;
-                    return (
+                {/* --- Right sidebar: summary donut + top rated --- */}
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-gray-100 p-4 text-center dark:border-primary-900/50">
+                    <h4 className="mb-3 text-left text-sm font-semibold text-gray-900 dark:text-ink-dark">
+                      360° Feedback Summary
+                    </h4>
+                    <div className="flex justify-center">
+                      <RadialProgress
+                        percent={(() => {
+                          const all = distribution.buckets.flatMap((b) => b.employees);
+                          const avg = all.length ? all.reduce((s, e) => s + e.avg_rating, 0) / all.length : 0;
+                          return Math.round((avg / 5) * 100);
+                        })()}
+                        size={110}
+                        strokeWidth={10}
+                        color="#E83E93"
+                        label={(() => {
+                          const all = distribution.buckets.flatMap((b) => b.employees);
+                          return all.length ? `${(all.reduce((s, e) => s + e.avg_rating, 0) / all.length).toFixed(2)}/5` : 'N/A';
+                        })()}
+                      />
+                    </div>
+                    <dl className="mt-4 space-y-2 text-left text-sm">
+                      <div className="flex justify-between border-t border-gray-100 pt-2 dark:border-primary-900/50">
+                        <dt className="text-ink-light/50 dark:text-ink-dark/50">Total Employees</dt>
+                        <dd className="font-medium text-gray-900 dark:text-ink-dark">{totalEmployeeCount ?? '—'}</dd>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-100 pt-2 dark:border-primary-900/50">
+                        <dt className="text-ink-light/50 dark:text-ink-dark/50">Completed Reviews</dt>
+                        <dd className="font-medium text-gray-900 dark:text-ink-dark">{completionStats?.completed ?? '—'}</dd>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-100 pt-2 dark:border-primary-900/50">
+                        <dt className="text-ink-light/50 dark:text-ink-dark/50">Participation Rate</dt>
+                        <dd className="font-medium text-gray-900 dark:text-ink-dark">
+                          {totalEmployeeCount ? `${Math.round((distribution.totalEmployees / totalEmployeeCount) * 100)}%` : '—'}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-100 p-4 dark:border-primary-900/50">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Top Rated Employees</h4>
                       <button
-                        key={b.rating}
-                        onClick={() => {
-                          setExpandedBucket(isSelected ? null : b.rating);
-                          setBucketFilter('');
-                        }}
-                        className={`rounded-xl border p-3 text-center transition-colors ${
-                          isSelected
-                            ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/40'
-                            : 'border-primary-50 hover:bg-primary-50/60 dark:border-primary-900/50'
-                        }`}
+                        onClick={() => setActiveTab('employee')}
+                        className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
                       >
-                        <p className="text-xl font-semibold text-primary-700 dark:text-primary-300">{b.rating}/5</p>
-                        <p className="mb-2 text-xs text-ink-light/50 dark:text-ink-dark/50">
-                          {b.count} employee{b.count === 1 ? '' : 's'}
-                        </p>
-                        <div className="h-1 overflow-hidden rounded-full bg-primary-50 dark:bg-primary-900/30">
-                          <div className="h-full rounded-full bg-primary-400" style={{ width: `${pct}%` }} />
-                        </div>
+                        View all
                       </button>
-                    );
-                  })}
+                    </div>
+                    {topRated === null ? (
+                      <div className="space-y-2">
+                        {[...Array(4)].map((_, i) => (
+                          <div key={i} className="skeleton h-6 w-full" />
+                        ))}
+                      </div>
+                    ) : topRated.length === 0 ? (
+                      <p className="py-4 text-center text-xs text-gray-400 dark:text-ink-dark/50">No submitted feedback yet.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {topRated.map((e, i) => (
+                          <li
+                            key={e.id}
+                            className={`flex items-center justify-between py-1.5 text-sm ${i > 0 ? 'border-t border-gray-100 dark:border-primary-900/40' : ''}`}
+                          >
+                            <span className="truncate font-medium text-gray-800 dark:text-ink-dark">
+                              {e.first_name} {e.last_name}
+                            </span>
+                            <span className="flex-shrink-0 font-semibold text-primary-600 dark:text-primary-300">{e.avg_rating}/5</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
+              </div>
+            )}
 
                 {expandedBucket !== null &&
                   (() => {
@@ -318,12 +482,43 @@ function HrPeerInsightsView() {
                       </div>
                     );
                   })()}
-              </>
-            )}
           </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="card card-reviews">
+          <h3 className="mb-4 font-display text-base font-semibold">Rating Distribution</h3>
+          {distribution === null ? (
+            <Skeleton className="h-[200px] w-full" />
+          ) : (
+            <div className="space-y-3">
+              {[
+                { rating: 5, label: 'Excellent', color: '#22c55e' },
+                { rating: 4, label: 'Very Good', color: '#3b82f6' },
+                { rating: 3, label: 'Good', color: '#a855f7' },
+                { rating: 2, label: 'Needs Improvement', color: '#f97316' },
+                { rating: 1, label: 'Poor', color: '#E83E93' },
+              ].map((meta) => {
+                const b = distribution.buckets.find((x) => x.rating === meta.rating) || { count: 0 };
+                const pct = distribution.totalEmployees > 0 ? Math.round((b.count / distribution.totalEmployees) * 100) : 0;
+                return (
+                  <div key={meta.rating} className="flex items-center gap-3 text-sm">
+                    <span className="w-36 flex-shrink-0 text-ink-light/60 dark:text-ink-dark/60">
+                      {meta.rating}/5 <span className="text-xs">({meta.label})</span>
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-primary-900/30">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: meta.color }} />
+                    </div>
+                    <span className="w-14 flex-shrink-0 text-right text-xs text-ink-light/50 dark:text-ink-dark/50">
+                      {b.count} ({pct}%)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div className="card card-reviews">
           <h3 className="mb-4 font-display text-base font-semibold">Rating Trend</h3>
           {ratingTrend === null ? (
@@ -342,40 +537,6 @@ function HrPeerInsightsView() {
                 <Line type="monotone" dataKey="avg_rating" stroke="#E83E93" strokeWidth={2} dot={{ fill: '#E83E93' }} />
               </LineChart>
             </ResponsiveContainer>
-          )}
-        </div>
-
-        <div className="card card-reviews">
-          <h3 className="mb-4 font-display text-base font-semibold">Top Rated Employees</h3>
-          {topRated === null ? (
-            <div className="space-y-2">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-8 w-full" />
-              ))}
-            </div>
-          ) : topRated.length === 0 ? (
-            <p className="py-8 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
-              No submitted feedback yet.
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-primary-100 text-left text-xs uppercase text-ink-light/40 dark:border-primary-900/50 dark:text-ink-dark/40">
-                  <th className="pb-2">Employee Name</th>
-                  <th className="pb-2 text-right">Average Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topRated.map((e) => (
-                  <tr key={e.id} className="border-b border-primary-50 last:border-0 dark:border-primary-900/40">
-                    <td className="py-2.5 font-medium text-gray-900 dark:text-ink-dark">
-                      {e.first_name} {e.last_name}
-                    </td>
-                    <td className="py-2.5 text-right text-primary-600 dark:text-primary-300">{e.avg_rating}/5</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           )}
         </div>
       </div>
@@ -1867,7 +2028,7 @@ function EmployeePeerInsightsView() {
                   <li key={p.id}>
                     <button
                       onClick={() => handleOpenProject(p)}
-                      className="flex w-full items-center gap-3 rounded-xl border border-primary-50 p-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+                      className="flex w-full items-center gap-3 rounded-xl border-l-[3px] border-primary-400 bg-primary-50/50 p-3 text-left transition-colors hover:bg-primary-50 dark:border-primary-500 dark:bg-primary-900/20 dark:hover:bg-primary-900/30"
                     >
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
                         <Briefcase size={16} />

@@ -7,7 +7,7 @@ import NotificationBell from './NotificationBell';
 import GlobalSearchBar from './GlobalSearchBar';
 import { ROLES } from '../utils/roles';
 
-export default function Topbar({ title, onOpenMenu }) {
+export default function Topbar({ title, onOpenMenu, onOpenProfile }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -84,7 +84,7 @@ export default function Topbar({ title, onOpenMenu }) {
               <button
                 onClick={() => {
                   setMenuOpen(false);
-                  navigate('/profile');
+                  onOpenProfile();
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-900/40"
               >

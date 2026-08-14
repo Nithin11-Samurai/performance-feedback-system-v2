@@ -241,6 +241,12 @@ async function getRatingDistribution(requesterUser, groupId) {
   };
 }
 
+/** Completed-vs-total feedback counts, for the Overview tab's secondary stats row. */
+async function getFeedbackCompletionStats(requesterUser, groupId) {
+  assertAdminTier(requesterUser);
+  return peerInsightModel.getFeedbackCompletionStats(groupId);
+}
+
 /** Every project with pending 360 feedback in its active round, for the Overview tab's pending-projects widget. */
 async function getProjectsWithPendingFeedback(requesterUser) {
   assertAdminTier(requesterUser);
@@ -609,6 +615,7 @@ module.exports = {
   getRatingDistribution,
   getRatingTrend,
   getProjectsWithPendingFeedback,
+  getFeedbackCompletionStats,
   getTopRatedEmployees,
   remindReviewer,
   remindAllPendingForRound,

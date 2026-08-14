@@ -274,6 +274,26 @@ async function listActiveRoundsWithPending() {
   return result.rows;
 }
 
+/** Total submitted feedback count and total assignment count org-wide (or for one project) - powers the participation-rate / completed-reviews stats. */
+async function getFeedbackCompletionStats(groupId) {
+  const params = [];
+  let groupFilter = '';
+  if (groupId) {
+    params.push(groupId);
+    groupFilter = 'AND r.project_group_id = $1';
+  }
+  const result = await query(
+    `SELECT
+       COUNT(*) FILTER (WHERE f.status = 'submitted')::int AS completed,
+       COUNT(*)::int AS total
+     FROM peer_insight_feedback f
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     WHERE 1=1 ${groupFilter}`,
+    params
+  );
+  return result.rows[0];
+}
+
 /** Every employee (subject) with at least one submitted feedback, and their average overall rating across ALL their submitted feedback (any project). Powers the org-wide rating distribution dashboard. */
 async function getOrgWideRatingSummary(groupId) {
   const params = [];
@@ -529,6 +549,7 @@ module.exports = {
   listSubjectsInRound,
   listAssignmentsWithStatusForRound,
   getOrgWideRatingSummary,
+  getFeedbackCompletionStats,
   listActiveRoundsWithPending,
   getMonthlyRatingTrend,
   upsertSummary,
