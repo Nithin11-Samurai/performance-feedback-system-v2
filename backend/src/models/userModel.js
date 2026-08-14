@@ -8,7 +8,7 @@ const { query } = require('../config/db');
 
 const PUBLIC_COLUMNS = `
   id, employee_code, first_name, last_name, email, role, job_title,
-  department, manager_id, date_of_joining, is_active, avatar_url,
+  department, manager_id, mentor_id, team_lead_id, date_of_joining, is_active, avatar_url,
   phone, address, emergency_contact_name, emergency_contact_phone,
   deleted_at, deleted_by, created_at, updated_at
 `;
@@ -19,7 +19,18 @@ async function findByEmail(email) {
 }
 
 async function findById(id) {
-  const result = await query(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE id = $1`, [id]);
+  const result = await query(
+    `SELECT ${PUBLIC_COLUMNS.split(',').map((c) => `u.${c.trim()}`).join(', ')},
+            mgr.first_name AS manager_first_name, mgr.last_name AS manager_last_name,
+            men.first_name AS mentor_first_name, men.last_name AS mentor_last_name,
+            tl.first_name AS team_lead_first_name, tl.last_name AS team_lead_last_name
+     FROM users u
+     LEFT JOIN users mgr ON mgr.id = u.manager_id
+     LEFT JOIN users men ON men.id = u.mentor_id
+     LEFT JOIN users tl ON tl.id = u.team_lead_id
+     WHERE u.id = $1`,
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -60,7 +71,7 @@ async function updateProfile(id, fields) {
   // Build a dynamic SET clause from whatever fields were provided.
   const allowed = [
     'employee_code', 'first_name', 'last_name', 'email', 'job_title', 'department',
-    'manager_id', 'date_of_joining', 'avatar_url', 'is_active', 'role',
+    'manager_id', 'mentor_id', 'team_lead_id', 'date_of_joining', 'avatar_url', 'is_active', 'role',
     'phone', 'address', 'emergency_contact_name', 'emergency_contact_phone',
   ];
   const setClauses = [];

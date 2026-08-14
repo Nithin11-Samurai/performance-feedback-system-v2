@@ -89,6 +89,18 @@ async function updateUser(requesterUser, targetUserId, updates, requestMeta = {}
       }
       fieldsToApply.manager_id = updates.managerId;
     }
+    if (updates.mentorId !== undefined) {
+      if (updates.mentorId === targetUserId) {
+        throw AppError.badRequest('A user cannot be their own mentor');
+      }
+      fieldsToApply.mentor_id = updates.mentorId;
+    }
+    if (updates.teamLeadId !== undefined) {
+      if (updates.teamLeadId === targetUserId) {
+        throw AppError.badRequest('A user cannot be their own team lead');
+      }
+      fieldsToApply.team_lead_id = updates.teamLeadId;
+    }
     if (updates.dateOfJoining !== undefined) fieldsToApply.date_of_joining = updates.dateOfJoining;
     if (updates.role !== undefined) fieldsToApply.role = updates.role;
     if (updates.isActive !== undefined) fieldsToApply.is_active = updates.isActive;

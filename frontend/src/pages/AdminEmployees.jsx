@@ -28,6 +28,7 @@ import {
   Send,
   UserPlus,
   Trash2,
+  X,
 } from 'lucide-react';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useToast } from '../context/ToastContext';
@@ -288,6 +289,105 @@ function formatDate(d) {
 
 // --- Tab: Overview (profile edit form + activate/deactivate) -------------
 
+/**
+ * Shows who currently reports to this employee (via the existing
+ * manager_id relationship) and lets HR add someone new as a direct
+ * report right from here, without needing to go edit that other
+ * person's own profile. Reuses the bulk-assign-manager endpoint that
+ * already existed for exactly this purpose.
+ */
+function DirectReportsSection({ employee }) {
+  const { showToast } = useToast();
+  const [reports, setReports] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(null);
+
+  async function load() {
+    const data = await userService.getDirectReportsOf(employee.id);
+    setReports(data);
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id]);
+
+  async function handleAdd(person) {
+    try {
+      await userService.bulkAssignManager([person.id], employee.id);
+      showToast(`${person.first_name} ${person.last_name} now reports to ${employee.first_name}`);
+      setAddOpen(false);
+      load();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to assign.', 'error');
+    }
+  }
+
+  async function handleRemove() {
+    try {
+      await userService.bulkAssignManager([confirmRemove.id], null);
+      showToast(`Removed ${confirmRemove.first_name} ${confirmRemove.last_name} from direct reports`);
+      setConfirmRemove(null);
+      load();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to remove.', 'error');
+    }
+  }
+
+  return (
+    <div className="card card-reviews">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="font-display text-base font-semibold">Direct Reports</h3>
+        <button onClick={() => setAddOpen(true)} className="btn-secondary text-xs">
+          <Plus size={13} /> Add report
+        </button>
+      </div>
+      {reports === null ? (
+        <Skeleton className="h-16 w-full" />
+      ) : reports.length === 0 ? (
+        <p className="py-3 text-sm text-ink-light/50 dark:text-ink-dark/50">Nobody reports to {employee.first_name} yet.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {reports.map((r) => (
+            <li
+              key={r.id}
+              className="flex items-center justify-between rounded-xl border border-primary-50 px-3 py-2 text-sm dark:border-primary-900/50"
+            >
+              <span className="font-medium text-gray-900 dark:text-ink-dark">
+                {r.first_name} {r.last_name}
+              </span>
+              <button onClick={() => setConfirmRemove(r)} className="text-ink-light/30 hover:text-danger dark:text-ink-dark/30">
+                <X size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add direct report">
+        <EmployeePicker
+          onSelect={handleAdd}
+          placeholder="Search employees…"
+          excludeIds={[employee.id, ...(reports || []).map((r) => r.id)]}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={!!confirmRemove}
+        onClose={() => setConfirmRemove(null)}
+        onConfirm={handleRemove}
+        title="Remove direct report"
+        message={
+          confirmRemove
+            ? `${confirmRemove.first_name} ${confirmRemove.last_name} will no longer report to ${employee.first_name}. This only changes the reporting line, not any historical feedback.`
+            : ''
+        }
+        confirmLabel="Remove"
+      />
+    </div>
+  );
+}
+
 function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
   const { user: currentUser } = useAuth();
   const canDelete = [ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN].includes(currentUser.role);
@@ -303,6 +403,8 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
     department: employee.department || '',
     role: employee.role,
     managerId: employee.manager_id || '',
+    mentorId: employee.mentor_id || '',
+    teamLeadId: employee.team_lead_id || '',
     dateOfJoining: employee.date_of_joining ? employee.date_of_joining.slice(0, 10) : '',
   });
   const [confirmToggle, setConfirmToggle] = useState(false);
@@ -317,6 +419,8 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
       department: employee.department || '',
       role: employee.role,
       managerId: employee.manager_id || '',
+      mentorId: employee.mentor_id || '',
+      teamLeadId: employee.team_lead_id || '',
       dateOfJoining: employee.date_of_joining ? employee.date_of_joining.slice(0, 10) : '',
     });
   }, [employee]);
@@ -333,6 +437,8 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
         department: editForm.department,
         role: editForm.role,
         managerId: editForm.managerId || null,
+        mentorId: editForm.mentorId || null,
+        teamLeadId: editForm.teamLeadId || null,
         dateOfJoining: editForm.dateOfJoining || null,
       });
       showToast('Employee profile updated');
@@ -473,6 +579,40 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
                 ))}
             </select>
           </div>
+          <div>
+            <label className="label">Mentor</label>
+            <select
+              className="input"
+              value={editForm.mentorId}
+              onChange={(e) => setEditForm((f) => ({ ...f, mentorId: e.target.value }))}
+            >
+              <option value="">None</option>
+              {managers
+                .filter((m) => m.id !== employee.id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.first_name} {m.last_name}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Team Lead</label>
+            <select
+              className="input"
+              value={editForm.teamLeadId}
+              onChange={(e) => setEditForm((f) => ({ ...f, teamLeadId: e.target.value }))}
+            >
+              <option value="">None</option>
+              {managers
+                .filter((m) => m.id !== employee.id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.first_name} {m.last_name}
+                  </option>
+                ))}
+            </select>
+          </div>
           <div className="sm:col-span-2">
             <button type="submit" className="btn-primary">
               Save changes
@@ -480,6 +620,8 @@ function OverviewTab({ employee, managers, onUpdated, onDeleted }) {
           </div>
         </form>
       </div>
+
+      <DirectReportsSection employee={employee} />
 
       <div className="card card-reviews flex items-center justify-between">
         <div>
@@ -1360,6 +1502,11 @@ export default function AdminEmployees() {
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [departmentCatalog, setDepartmentCatalog] = useState([]);
   const [jobTitleCatalog, setJobTitleCatalog] = useState([]);
+  const [directoryOpen, setDirectoryOpen] = useState(true);
+
+  useEffect(() => {
+    if (selected) setDirectoryOpen(false);
+  }, [selected]);
 
   useEffect(() => {
     catalogService.listDepartments().then((list) => setDepartmentCatalog(list.map((d) => d.name)));
@@ -1503,7 +1650,7 @@ showToast("Delete failed","error");
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-<div className="grid grid-cols-1 gap-6 lg:grid-cols-[460px_1fr]">   {/* Populated from the managed catalog (Settings page) — referenced by
+<div className={`grid grid-cols-1 gap-6 ${directoryOpen ? 'lg:grid-cols-[460px_1fr]' : 'lg:grid-cols-[56px_1fr]'}`}>   {/* Populated from the managed catalog (Settings page) — referenced by
           `list=` on the department/job-title inputs below and in OverviewTab,
           regardless of component nesting (datalist lookup is DOM-global). */}
       <datalist id="dept-catalog-list">
@@ -1517,10 +1664,30 @@ showToast("Delete failed","error");
         ))}
       </datalist>
 
-      <div className="card card-reviews h-fit">
+      <div className="card card-reviews h-fit !p-0">
+        {!directoryOpen ? (
+          <button
+            onClick={() => setDirectoryOpen(true)}
+            title="Show directory"
+            aria-label="Show directory"
+            className="flex w-full flex-col items-center gap-2 py-5 text-ink-light/50 hover:text-primary-600 dark:text-ink-dark/50 dark:hover:text-primary-300"
+          >
+            <ChevronRight size={18} />
+            <span className="text-[10px] font-medium uppercase tracking-wide [writing-mode:vertical-rl]">Directory</span>
+          </button>
+        ) : (
+        <div className="p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="font-display text-base font-semibold">Directory</h3>
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setDirectoryOpen(false)}
+              title="Collapse directory"
+              aria-label="Collapse directory"
+              className="btn-secondary !px-2.5"
+            >
+              <ChevronLeft size={15} />
+            </button>
             {canDelete && (
               <button
                 onClick={() => setRecentlyDeletedOpen(true)}
@@ -1685,6 +1852,8 @@ Delete Selected
               </div>
             </div>
           </>
+        )}
+        </div>
         )}
       </div>
 

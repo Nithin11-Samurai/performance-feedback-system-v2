@@ -606,3 +606,15 @@ BEGIN
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END $$;
+
+-- Mentor and Team Lead are separate relationships from the existing
+-- manager_id (which drives reporting-line / "direct reports"). A mentor
+-- is often outside someone's reporting chain entirely, and a team lead
+-- may run a project without being their HR-line manager. Both are
+-- optional, self-referencing, and set to NULL (not cascaded) if the
+-- referenced person is ever removed, matching manager_id's behavior.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mentor_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS team_lead_id UUID REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_users_mentor_id ON users(mentor_id);
+CREATE INDEX IF NOT EXISTS idx_users_team_lead_id ON users(team_lead_id);
+
