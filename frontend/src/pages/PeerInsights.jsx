@@ -82,6 +82,10 @@ function HrPeerInsightsView() {
   const [topRated, setTopRated] = useState(null);
   const [pendingProjects, setPendingProjects] = useState(null);
   const [remindingRoundId, setRemindingRoundId] = useState(null);
+  const [expandedPendingRoundId, setExpandedPendingRoundId] = useState(null);
+  const [pendingRoundDetails, setPendingRoundDetails] = useState({});
+  const [remindingFeedbackId, setRemindingFeedbackId] = useState(null);
+  const [remindedFeedbackIds, setRemindedFeedbackIds] = useState(new Set());
   const [overviewProjectFilter, setOverviewProjectFilter] = useState('');
   const [completionStats, setCompletionStats] = useState(null);
   const [totalEmployeeCount, setTotalEmployeeCount] = useState(null);
@@ -133,10 +137,44 @@ function HrPeerInsightsView() {
       const result = await peerInsightService.remindAllPendingForRound(roundId);
       showToast(result.message);
       peerInsightService.getProjectsWithPendingFeedback().then(setPendingProjects);
+      if (pendingRoundDetails[roundId]) {
+        const pendingIds = pendingRoundDetails[roundId].filter((a) => a.status === 'pending').map((a) => a.id);
+        setRemindedFeedbackIds((prev) => new Set([...prev, ...pendingIds]));
+      }
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to send reminders.', 'error');
     } finally {
       setRemindingRoundId(null);
+    }
+  }
+
+  /** Expands a pending project row to show individual reviewer names, each with its own remind action. */
+  async function handleTogglePendingProject(roundId) {
+    if (expandedPendingRoundId === roundId) {
+      setExpandedPendingRoundId(null);
+      return;
+    }
+    setExpandedPendingRoundId(roundId);
+    if (!pendingRoundDetails[roundId]) {
+      try {
+        const detail = await peerInsightService.getRoundAssignmentDetail(roundId);
+        setPendingRoundDetails((prev) => ({ ...prev, [roundId]: detail }));
+      } catch {
+        setPendingRoundDetails((prev) => ({ ...prev, [roundId]: [] }));
+      }
+    }
+  }
+
+  async function handleRemindOnePending(feedbackId) {
+    setRemindingFeedbackId(feedbackId);
+    try {
+      const result = await peerInsightService.remindReviewer(feedbackId);
+      showToast(result.message || 'Reminder sent');
+      setRemindedFeedbackIds((prev) => new Set(prev).add(feedbackId));
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to send reminder.', 'error');
+    } finally {
+      setRemindingFeedbackId(null);
     }
   }
 
@@ -660,28 +698,73 @@ function HrPeerInsightsView() {
           </p>
         ) : (
           <ul className="space-y-2">
-            {pendingProjects.map((p) => (
-              <li
-                key={p.round_id}
-                className="flex items-center justify-between rounded-xl border border-primary-50 p-3 dark:border-primary-900/50"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-ink-dark">
-                    {p.group_name} <span className="text-ink-light/40 dark:text-ink-dark/40">— {p.round_name}</span>
-                  </p>
-                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
-                    {p.pending_count} pending{p.end_date && ` · Ends ${new Date(p.end_date).toLocaleDateString()}`}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRemindAllPending(p.round_id)}
-                  disabled={remindingRoundId === p.round_id}
-                  className="btn-primary text-xs disabled:opacity-50"
-                >
-                  {remindingRoundId === p.round_id ? 'Sending…' : `Remind all (${p.pending_count})`}
-                </button>
-              </li>
-            ))}
+            {pendingProjects.map((p) => {
+              const isExpanded = expandedPendingRoundId === p.round_id;
+              const details = (pendingRoundDetails[p.round_id] || []).filter((a) => a.status === 'pending');
+              return (
+                <li key={p.round_id} className="rounded-xl border border-primary-50 dark:border-primary-900/50">
+                  <div className="flex items-center justify-between p-3">
+                    <button
+                      onClick={() => handleTogglePendingProject(p.round_id)}
+                      className="flex flex-1 items-center gap-2 text-left"
+                    >
+                      <ChevronDown
+                        size={14}
+                        className={`flex-shrink-0 text-ink-light/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-ink-dark">
+                          {p.group_name} <span className="text-ink-light/40 dark:text-ink-dark/40">— {p.round_name}</span>
+                        </p>
+                        <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
+                          {p.pending_count} pending{p.end_date && ` · Ends ${new Date(p.end_date).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleRemindAllPending(p.round_id)}
+                      disabled={remindingRoundId === p.round_id}
+                      className="btn-primary flex-shrink-0 text-xs disabled:opacity-50"
+                    >
+                      {remindingRoundId === p.round_id ? 'Sending…' : `Remind all (${p.pending_count})`}
+                    </button>
+                  </div>
+                  {isExpanded && (
+                    <div className="space-y-1.5 border-t border-primary-50 p-3 dark:border-primary-900/50">
+                      {!pendingRoundDetails[p.round_id] ? (
+                        <Skeleton className="h-12 w-full" />
+                      ) : details.length === 0 ? (
+                        <p className="py-2 text-center text-xs text-ink-light/50 dark:text-ink-dark/50">
+                          No one pending — everyone's submitted.
+                        </p>
+                      ) : (
+                        details.map((a) => (
+                          <div key={a.id} className="flex items-center justify-between text-sm">
+                            <span>
+                              {a.reviewer_first_name} {a.reviewer_last_name}
+                              <span className="ml-2 text-xs text-ink-light/40 dark:text-ink-dark/40">
+                                reviewing {a.subject_first_name} {a.subject_last_name}
+                              </span>
+                            </span>
+                            <button
+                              onClick={() => handleRemindOnePending(a.id)}
+                              disabled={remindingFeedbackId === a.id}
+                              className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300 disabled:opacity-50"
+                            >
+                              {remindingFeedbackId === a.id
+                                ? 'Sending…'
+                                : remindedFeedbackIds.has(a.id)
+                                ? 'Remind again'
+                                : 'Remind'}
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -1490,7 +1573,7 @@ function RoundDetail({ round: initialRound, group, onBack }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [assignmentDetail, setAssignmentDetail] = useState(null);
-  const [showStatusDetail, setShowStatusDetail] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(null); // null | 'submitted' | 'pending'
   const [reminding, setReminding] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editNameInput, setEditNameInput] = useState(round.name);
@@ -1604,22 +1687,40 @@ function RoundDetail({ round: initialRound, group, onBack }) {
           Started {new Date(round.started_at).toLocaleDateString()}
           {round.end_date && ` · Ends ${new Date(round.end_date).toLocaleDateString()}`}
         </p>
-        <button
-          onClick={() => setShowStatusDetail((v) => !v)}
-          className="flex items-center gap-4 text-sm hover:opacity-80"
-          title="Click to see who's submitted and who's pending"
-        >
-          <span className="text-success">{submittedCount} submitted</span>
-          <span className="text-ink-light/50 dark:text-ink-dark/50">{pendingCount} pending</span>
-          <ChevronDown size={14} className={`text-ink-light/40 transition-transform ${showStatusDetail ? 'rotate-180' : ''}`} />
-        </button>
+        <div className="flex items-center gap-4 text-sm">
+          <button
+            onClick={() => setStatusFilter((f) => (f === 'submitted' ? null : 'submitted'))}
+            className={`rounded-full px-2 py-0.5 text-success transition-colors hover:opacity-80 ${
+              statusFilter === 'submitted' ? 'bg-success/10 font-semibold' : ''
+            }`}
+            title="Click to see who's submitted"
+          >
+            {submittedCount} submitted
+          </button>
+          <button
+            onClick={() => setStatusFilter((f) => (f === 'pending' ? null : 'pending'))}
+            className={`rounded-full px-2 py-0.5 text-ink-light/50 transition-colors hover:opacity-80 dark:text-ink-dark/50 ${
+              statusFilter === 'pending' ? 'bg-primary-50 font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-200' : ''
+            }`}
+            title="Click to see who's pending"
+          >
+            {pendingCount} pending
+          </button>
+          <ChevronDown size={14} className={`text-ink-light/40 transition-transform ${statusFilter ? 'rotate-180' : ''}`} />
+        </div>
 
-        {showStatusDetail && (
+        {statusFilter && (
           <div className="mt-3 space-y-1.5 border-t border-primary-50 pt-3 dark:border-primary-900/50">
             {assignmentDetail === null ? (
               <Skeleton className="h-16 w-full" />
+            ) : assignmentDetail.filter((a) => a.status === statusFilter).length === 0 ? (
+              <p className="py-2 text-center text-xs text-ink-light/50 dark:text-ink-dark/50">
+                No one {statusFilter} yet.
+              </p>
             ) : (
-              assignmentDetail.map((a) => (
+              assignmentDetail
+                .filter((a) => a.status === statusFilter)
+                .map((a) => (
                 <div key={a.id} className="flex items-center justify-between text-sm">
                   <span>
                     {a.reviewer_first_name} {a.reviewer_last_name}
@@ -1946,6 +2047,8 @@ function EmployeePeerInsightsView() {
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState({});
   const [reviewsModalOpen, setReviewsModalOpen] = useState(false);
+  const [completedModalOpen, setCompletedModalOpen] = useState(false);
+  const [completedReviews, setCompletedReviews] = useState(null);
   const [openProject, setOpenProject] = useState(null);
   const [projectDetail, setProjectDetail] = useState(null);
   const [reviewQueue, setReviewQueue] = useState(null);
@@ -2020,6 +2123,18 @@ function EmployeePeerInsightsView() {
     setReviewQueueIndex(0);
   }
 
+  async function handleOpenCompletedModal() {
+    setCompletedModalOpen(true);
+    if (!completedReviews) {
+      try {
+        const data = await peerInsightService.listMyCompletedReviews();
+        setCompletedReviews(data);
+      } catch {
+        setCompletedReviews([]);
+      }
+    }
+  }
+
   async function handleOpenProject(project) {
     setOpenProject(project);
     setProjectDetail(null);
@@ -2043,7 +2158,7 @@ function EmployeePeerInsightsView() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* --- Your action items --- */}
         <div className="card card-reviews">
           <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-ink-dark">Your action items</h3>
@@ -2068,61 +2183,24 @@ function EmployeePeerInsightsView() {
                 </button>
               )}
               <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="rounded-xl bg-primary-50/60 py-3 dark:bg-primary-900/20">
+                <button
+                  onClick={() => setReviewsModalOpen(true)}
+                  disabled={pendingCount === 0}
+                  className="rounded-xl bg-primary-50/60 py-3 text-center transition-colors hover:bg-primary-100/70 disabled:cursor-default disabled:hover:bg-primary-50/60 dark:bg-primary-900/20 dark:hover:bg-primary-900/30"
+                >
                   <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{pendingCount}</p>
                   <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Pending reviews</p>
-                </div>
-                <div className="rounded-xl bg-emerald-50 py-3 dark:bg-emerald-900/20">
+                </button>
+                <button
+                  onClick={handleOpenCompletedModal}
+                  disabled={(completedCount ?? 0) === 0}
+                  className="rounded-xl bg-emerald-50 py-3 text-center transition-colors hover:bg-emerald-100/70 disabled:cursor-default disabled:hover:bg-emerald-50 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
+                >
                   <p className="text-lg font-semibold text-gray-900 dark:text-ink-dark">{completedCount ?? 0}</p>
                   <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Completed reviews</p>
-                </div>
+                </button>
               </div>
             </>
-          )}
-        </div>
-
-        {/* --- Peer reviews to complete --- */}
-        <div className="card card-reviews">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-ink-dark">Peer reviews to complete</h3>
-            {assignments && assignments.length > 2 && (
-              <button
-                onClick={() => setReviewsModalOpen(true)}
-                className="text-xs font-medium text-primary-600 hover:underline dark:text-primary-300"
-              >
-                View all ({assignments.length})
-              </button>
-            )}
-          </div>
-          {assignments === null ? (
-            <Skeleton className="h-24 w-full" />
-          ) : assignments.length === 0 ? (
-            <p className="py-4 text-sm text-ink-light/50 dark:text-ink-dark/50">
-              Nothing pending right now — you'll be notified if you're asked to review a teammate.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {assignments.slice(0, 2).map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => openSingleReview(a)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-primary-50 px-4 py-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
-                >
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
-                    {a.subject_first_name?.[0]}
-                    {a.subject_last_name?.[0]}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
-                    <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
-                      {a.subject_first_name} {a.subject_last_name}
-                    </p>
-                    <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">{a.group_name}</p>
-                  </div>
-                  {a.round_end_date && <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>}
-                </button>
-              ))}
-            </div>
           )}
         </div>
 
@@ -2215,14 +2293,15 @@ function EmployeePeerInsightsView() {
                 </p>
               </div>
             )}
-            {summaries.map((s) => {
+            {summaries.map((s, idx) => {
               const isRecent = Date.now() - new Date(s.released_at).getTime() < 7 * 24 * 60 * 60 * 1000;
               const isExpanded = expandedSummaryId === s.id;
               return (
                 <div key={s.id} className="rounded-card border-l-4 border-primary-600 bg-primary-50/60 p-5 shadow-card dark:bg-primary-900/20">
                   <div className="mb-2 flex items-center justify-between">
+                    {/* Deliberately no project or person name here — this summary aggregates anonymous peer feedback, and naming the project could narrow down who said what in a small team. */}
                     <p className="flex items-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-100">
-                      <Sparkles size={15} /> {s.group_name} — {s.round_name}
+                      <Sparkles size={15} /> 360° Feedback Summary{summaries.length > 1 ? ` — Cycle ${idx + 1}` : ''}
                     </p>
                     {isRecent && <Badge tone="primary">New</Badge>}
                   </div>
@@ -2254,32 +2333,83 @@ function EmployeePeerInsightsView() {
         )}
       </div>
 
-      {/* --- View all pending reviews, opened as a popup instead of expanding the card --- */}
-      <Modal open={reviewsModalOpen} onClose={() => setReviewsModalOpen(false)} title="Peer reviews to complete" size="lg">
+      {/* --- Pending reviews popup (was inline "Peer reviews to complete") --- */}
+      <Modal open={reviewsModalOpen} onClose={() => setReviewsModalOpen(false)} title="Pending reviews" size="lg">
         <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
-          {(assignments || []).map((a) => (
-            <button
-              key={a.id}
-              onClick={() => {
-                setReviewsModalOpen(false);
-                openSingleReview(a);
-              }}
-              className="flex w-full items-center gap-3 rounded-xl border border-primary-50 px-4 py-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
-            >
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
-                {a.subject_first_name?.[0]}
-                {a.subject_last_name?.[0]}
+          {(assignments || []).length === 0 ? (
+            <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              Nothing pending right now — you'll be notified if you're asked to review a teammate.
+            </p>
+          ) : (
+            (assignments || []).map((a) => (
+              <button
+                key={a.id}
+                onClick={() => {
+                  setReviewsModalOpen(false);
+                  openSingleReview(a);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl border border-primary-50 px-4 py-3 text-left transition-colors hover:bg-primary-50/60 dark:border-primary-900/50 dark:hover:bg-primary-900/30"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800 dark:bg-primary-900 dark:text-primary-100">
+                  {a.subject_first_name?.[0]}
+                  {a.subject_last_name?.[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                    {a.subject_first_name} {a.subject_last_name}
+                  </p>
+                  <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">
+                    {a.group_name}
+                    {a.subject_job_title ? ` · ${a.subject_job_title}` : ''}
+                  </p>
+                </div>
+                {a.round_end_date && <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>}
+              </button>
+            ))
+          )}
+        </div>
+      </Modal>
+
+      {/* --- Completed reviews popup --- */}
+      <Modal open={completedModalOpen} onClose={() => setCompletedModalOpen(false)} title="Completed reviews" size="lg">
+        <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
+          {completedReviews === null ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : completedReviews.length === 0 ? (
+            <p className="py-4 text-center text-sm text-ink-light/50 dark:text-ink-dark/50">
+              You haven't completed any reviews yet.
+            </p>
+          ) : (
+            completedReviews.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center gap-3 rounded-xl border border-primary-50 px-4 py-3 dark:border-primary-900/50"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                  {r.subject_first_name?.[0]}
+                  {r.subject_last_name?.[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
+                    {r.subject_first_name} {r.subject_last_name}
+                  </p>
+                  <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">
+                    {r.group_name}
+                    {r.subject_job_title ? ` · ${r.subject_job_title}` : ''}
+                  </p>
+                </div>
+                {r.submitted_at && (
+                  <Badge tone="success">Submitted {new Date(r.submitted_at).toLocaleDateString()}</Badge>
+                )}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
-                <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
-                  {a.subject_first_name} {a.subject_last_name}
-                </p>
-                <p className="truncate text-xs text-ink-light/40 dark:text-ink-dark/40">{a.group_name}</p>
-              </div>
-              {a.round_end_date && <Badge tone="warning">Due {new Date(a.round_end_date).toLocaleDateString()}</Badge>}
-            </button>
-          ))}
+            ))
+          )}
         </div>
       </Modal>
 
@@ -2296,6 +2426,10 @@ function EmployeePeerInsightsView() {
       >
         {currentReviewAssignment && (
           <div className="max-h-[70vh] overflow-y-auto pr-1">
+            <p className="mb-1 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+              {currentReviewAssignment.group_name}
+              {currentReviewAssignment.round_name ? ` — ${currentReviewAssignment.round_name}` : ''}
+            </p>
             {reviewQueue.length > 1 && (
               <p className="mb-4 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
                 Reviewing {reviewQueueIndex + 1} of {reviewQueue.length}

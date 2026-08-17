@@ -45,6 +45,7 @@ router.patch('/rounds/:roundId/remind-all', adminOnly, peerInsightController.rem
 // --- Reviewer-facing (any authenticated user, scoped to self in service) ---
 router.get('/my-assignments', peerInsightController.listAllMyPendingAssignments);
 router.get('/my-completed-count', peerInsightController.getMyCompletedReviewCount);
+router.get('/my-completed-reviews', peerInsightController.listMyCompletedReviews);
 router.get('/rounds/:roundId/my-assignments', peerInsightController.listMyAssignments);
 router.patch('/feedback/:feedbackId/draft', peerInsightController.saveDraft);
 router.patch('/feedback/:feedbackId/submit', peerInsightController.submitFeedback);

@@ -213,6 +213,22 @@ async function listAllPendingAssignmentsForReviewer(reviewerId) {
   return result.rows;
 }
 
+/** Every review this person has personally submitted as a reviewer, all-time, with subject/project details - powers the "Completed reviews" popup. */
+async function listCompletedReviewsByReviewer(reviewerId) {
+  const result = await query(
+    `SELECT f.id, f.submitted_at, s.first_name AS subject_first_name, s.last_name AS subject_last_name, s.job_title AS subject_job_title,
+            r.name AS round_name, g.name AS group_name
+     FROM peer_insight_feedback f
+     JOIN users s ON s.id = f.subject_id
+     JOIN peer_insight_rounds r ON r.id = f.round_id
+     JOIN project_groups g ON g.id = r.project_group_id
+     WHERE f.reviewer_id = $1 AND f.status = 'submitted'
+     ORDER BY f.submitted_at DESC`,
+    [reviewerId]
+  );
+  return result.rows;
+}
+
 async function findFeedbackById(id) {
   const result = await query('SELECT * FROM peer_insight_feedback WHERE id = $1', [id]);
   return result.rows[0] || null;
@@ -559,6 +575,7 @@ module.exports = {
   listAssignmentsForReviewer,
   listAllPendingAssignmentsForReviewer,
   countCompletedReviewsByReviewer,
+  listCompletedReviewsByReviewer,
   findFeedbackById,
   saveDraft,
   markSubmitted,

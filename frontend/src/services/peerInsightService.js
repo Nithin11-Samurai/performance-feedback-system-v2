@@ -168,6 +168,11 @@ export async function getMyCompletedReviewCount() {
   return data.data.count;
 }
 
+export async function listMyCompletedReviews() {
+  const { data } = await api.get('/peer-insights/my-completed-reviews');
+  return data.data.reviews;
+}
+
 export async function listMyAssignments(roundId) {
   const { data } = await api.get(`/peer-insights/rounds/${roundId}/my-assignments`);
   return data.data.assignments;

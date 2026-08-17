@@ -351,6 +351,11 @@ async function getMyCompletedReviewCount(requesterUser) {
   return peerInsightModel.countCompletedReviewsByReviewer(requesterUser.id);
 }
 
+/** Every review I've personally submitted, with subject/project details - powers the "Completed reviews" popup. */
+async function listMyCompletedReviews(requesterUser) {
+  return peerInsightModel.listCompletedReviewsByReviewer(requesterUser.id);
+}
+
 async function saveDraft(requesterUser, feedbackId, payload) {
   const feedback = await peerInsightModel.findFeedbackById(feedbackId);
   if (!feedback) throw AppError.notFound('Assignment not found');
@@ -635,6 +640,7 @@ module.exports = {
   listMyAssignments,
   listAllMyPendingAssignments,
   getMyCompletedReviewCount,
+  listMyCompletedReviews,
   saveDraft,
   submitFeedback,
   getRawFeedbackForSubject,
