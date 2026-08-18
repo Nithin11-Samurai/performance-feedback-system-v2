@@ -424,6 +424,29 @@ async function submitFeedback(requesterUser, feedbackId) {
 
   const updated = await peerInsightModel.markSubmitted(feedbackId);
   if (!updated) throw AppError.badRequest('This feedback has already been submitted');
+
+  // Let HR/Global Admin know a 360 review has come in - mirrors the
+  // review_submitted notification pattern used for regular review cycles.
+  // Intentionally does NOT name the reviewer in the message: HR can look up
+  // raw feedback (with reviewer identity) themselves via the admin-tier
+  // endpoints if needed, but the notification itself stays anonymous like
+  // everywhere else in this feature.
+  const [subject, round] = await Promise.all([
+    userModel.findById(feedback.subject_id),
+    peerInsightModel.findRoundById(feedback.round_id),
+  ]);
+  const group = round ? await peerInsightModel.findGroupById(round.project_group_id) : null;
+  if (subject && round) {
+    await notificationService.notifyAdmins({
+      type: 'peer_review_submitted',
+      title: '360° feedback submitted',
+      message: `A new anonymous 360° review for ${subject.first_name} ${subject.last_name} has been submitted${
+        group ? ` in "${group.name}"` : ''
+      } (${round.name}).`,
+      link: `/peer-insights?round=${round.id}`,
+    });
+  }
+
   return updated;
 }
 
