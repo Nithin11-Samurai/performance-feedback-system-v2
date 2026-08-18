@@ -95,7 +95,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
           } ${
             isActive
               ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200'
-              : 'text-gray-500 hover:translate-x-0.5 hover:bg-primary-50/60 hover:text-primary-700 dark:text-ink-dark/65 dark:hover:bg-primary-900/30 dark:hover:text-primary-200'
+              : 'text-black hover:translate-x-0.5 hover:bg-primary-50/60 hover:text-primary-700 dark:text-ink-dark/90 dark:hover:bg-primary-900/30 dark:hover:text-primary-200'
           }`
         }
       >

@@ -2053,6 +2053,7 @@ function EmployeePeerInsightsView() {
   const [projectDetail, setProjectDetail] = useState(null);
   const [reviewQueue, setReviewQueue] = useState(null);
   const [reviewQueueIndex, setReviewQueueIndex] = useState(0);
+  const [pendingStart, setPendingStart] = useState(null); // { ids, subjectName? } — awaiting the anonymity confirmation
   const [expandedSummaryId, setExpandedSummaryId] = useState(null);
 
   async function loadAssignments() {
@@ -2114,13 +2115,21 @@ function EmployeePeerInsightsView() {
 
   function startReviewing() {
     if (!assignments || assignments.length === 0) return;
-    setReviewQueue(assignments.map((a) => a.id));
-    setReviewQueueIndex(0);
+    setPendingStart({ ids: assignments.map((a) => a.id) });
   }
 
   function openSingleReview(assignment) {
-    setReviewQueue([assignment.id]);
+    setPendingStart({
+      ids: [assignment.id],
+      subjectName: `${assignment.subject_first_name} ${assignment.subject_last_name}`,
+    });
+  }
+
+  function confirmStartReview() {
+    if (!pendingStart) return;
+    setReviewQueue(pendingStart.ids);
     setReviewQueueIndex(0);
+    setPendingStart(null);
   }
 
   async function handleOpenCompletedModal() {
@@ -2355,7 +2364,7 @@ function EmployeePeerInsightsView() {
                   {a.subject_last_name?.[0]}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Review for</p>
                   <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
                     {a.subject_first_name} {a.subject_last_name}
                   </p>
@@ -2395,7 +2404,7 @@ function EmployeePeerInsightsView() {
                   {r.subject_last_name?.[0]}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Anonymous review for</p>
+                  <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">Reviewed</p>
                   <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
                     {r.subject_first_name} {r.subject_last_name}
                   </p>
@@ -2410,6 +2419,25 @@ function EmployeePeerInsightsView() {
               </div>
             ))
           )}
+        </div>
+      </Modal>
+
+      {/* --- Anonymity confirmation: shown once before opening the actual review form, whether started from "Start reviewing", the Pending reviews popup, or a project member row --- */}
+      <Modal open={!!pendingStart} onClose={() => setPendingStart(null)} title="This is an anonymous review">
+        <div className="space-y-4">
+          <p className="text-sm text-ink-light/70 dark:text-ink-dark/70">
+            {pendingStart?.subjectName
+              ? `Your review of ${pendingStart.subjectName} won't be linked back to you — the person you're reviewing will never see who submitted it.`
+              : "Your reviews won't be linked back to you — the people you're reviewing will never see who submitted them."}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setPendingStart(null)} className="btn-secondary text-sm">
+              Cancel
+            </button>
+            <button onClick={confirmStartReview} className="btn-primary text-sm">
+              Continue
+            </button>
+          </div>
         </div>
       </Modal>
 
@@ -2472,12 +2500,31 @@ function EmployeePeerInsightsView() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-900 dark:text-ink-dark">
                     {m.first_name} {m.last_name}
+                    {m.is_self && <span className="ml-1.5 text-xs font-normal text-ink-light/40 dark:text-ink-dark/40">(you)</span>}
                   </p>
                   <p className="truncate text-xs text-gray-400 dark:text-ink-dark/40">
                     {m.job_title || 'No title set'}
                     {m.department ? ` · ${m.department}` : ''}
                   </p>
                 </div>
+                {m.review_status === 'submitted' && <Badge tone="success">Submitted</Badge>}
+                {m.review_status === 'pending' && (
+                  <button
+                    onClick={() => {
+                      setOpenProject(null);
+                      openSingleReview({
+                        id: m.feedback_id,
+                        subject_first_name: m.first_name,
+                        subject_last_name: m.last_name,
+                        group_name: projectDetail.name,
+                        round_name: m.round_name,
+                      });
+                    }}
+                    className="btn-primary flex-shrink-0 text-xs"
+                  >
+                    Submit review
+                  </button>
+                )}
               </div>
             ))}
           </div>
