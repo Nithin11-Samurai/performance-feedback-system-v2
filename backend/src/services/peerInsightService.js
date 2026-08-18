@@ -73,6 +73,12 @@ async function getGroup(requesterUser, groupId) {
  * group", so one employee can't browse an unrelated project's roster.
  * Never exposes review assignments, submission status, or anything
  * that would leak reviewer identity.
+ *
+ * The one exception: each member also gets the VIEWER's OWN review_status
+ * for them (pending/submitted/null), from the viewer's active-round
+ * assignments only. This never reveals who else is reviewing whom - it's
+ * strictly "have I, the person looking at this screen, already reviewed
+ * this teammate" - which the viewer already knows about themselves.
  */
 async function getMyProjectDetail(requesterUser, groupId) {
   const group = await peerInsightModel.findGroupById(groupId);
@@ -84,7 +90,34 @@ async function getMyProjectDetail(requesterUser, groupId) {
     throw AppError.forbidden("You can only view details for projects you're a member of.");
   }
 
-  return { id: group.id, name: group.name, description: group.description, members };
+  // Use the most recent round regardless of status (active OR closed) so that
+  // "Submitted" badges keep showing after HR closes the round - only the
+  // ability to submit a NEW review depends on the round still being active.
+  const rounds = await peerInsightModel.listRoundsForGroup(groupId);
+  const latestRound = rounds[0] || null; // listRoundsForGroup orders by started_at DESC
+  const roundIsOpen = latestRound?.status === 'active';
+
+  let myAssignmentBySubjectId = {};
+  if (latestRound) {
+    const myAssignments = await peerInsightModel.listAssignmentsForReviewer(latestRound.id, requesterUser.id);
+    myAssignmentBySubjectId = Object.fromEntries(myAssignments.map((a) => [a.subject_id, a]));
+  }
+
+  const membersWithMyStatus = members.map((m) => {
+    if (m.id === requesterUser.id) return { ...m, is_self: true, review_status: null };
+    const mine = myAssignmentBySubjectId[m.id];
+    if (!mine) return { ...m, review_status: null };
+    return {
+      ...m,
+      review_status: mine.status, // 'pending' | 'submitted'
+      // Only expose the ability to act on a pending review while the round is still open.
+      can_submit: mine.status === 'pending' && roundIsOpen,
+      feedback_id: mine.id,
+      round_name: latestRound.name,
+    };
+  });
+
+  return { id: group.id, name: group.name, description: group.description, members: membersWithMyStatus };
 }
 
 async function addMember(requesterUser, groupId, userId) {

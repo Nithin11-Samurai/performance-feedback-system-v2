@@ -2508,7 +2508,7 @@ function EmployeePeerInsightsView() {
                   </p>
                 </div>
                 {m.review_status === 'submitted' && <Badge tone="success">Submitted</Badge>}
-                {m.review_status === 'pending' && (
+                {m.review_status === 'pending' && m.can_submit && (
                   <button
                     onClick={() => {
                       setOpenProject(null);
@@ -2525,6 +2525,7 @@ function EmployeePeerInsightsView() {
                     Submit review
                   </button>
                 )}
+                {m.review_status === 'pending' && !m.can_submit && <Badge tone="warning">Round closed</Badge>}
               </div>
             ))}
           </div>
