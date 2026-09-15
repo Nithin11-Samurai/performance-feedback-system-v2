@@ -1,71 +1,156 @@
 /**
  * Certification service.
- * Same visibility/edit rules as skills: viewable by self/manager/admin,
- * editable only by self or Admin/HR. Also responsible for cleaning up the
- * uploaded certificate file from disk when a record is deleted or replaced,
- * so we don't silently accumulate orphaned files.
+ *
+ * Same visibility/edit rules as skills:
+ *   - viewable by self/manager/admin
+ *   - editable only by self or Admin/HR
+ *
+ * Certificate files are stored in Azure Blob Storage.
+ * The database continues to store only the filename in file_path,
+ * preserving the existing application contract.
  */
-const fs = require('fs/promises');
-const path = require('path');
 const certificationModel = require('../models/certificationModel');
 const userModel = require('../models/userModel');
 const userService = require('./userService');
 const notificationService = require('./notificationService');
+const blobStorage = require('../utils/blobStorage');
 const AppError = require('../utils/AppError');
-const { ROLES, isAdminTier } = require('../config/constants');
-const { UPLOAD_ROOT } = require('../middleware/upload');
+const { isAdminTier } = require('../config/constants');
 
 async function assertTargetExists(userId) {
   const user = await userModel.findById(userId);
-  if (!user) throw AppError.notFound('User not found');
+
+  if (!user) {
+    throw AppError.notFound('User not found');
+  }
+
   return user;
 }
 
 function assertCanEdit(requesterUser, targetUserId) {
   const isSelf = requesterUser.id === targetUserId;
   const isAdmin = isAdminTier(requesterUser.role);
+
   if (!isSelf && !isAdmin) {
-    throw AppError.forbidden('Only the employee themself or HR can manage this certification');
+    throw AppError.forbidden(
+      'Only the employee themself or HR can manage this certification'
+    );
   }
 }
 
+/**
+ * Delete a certificate from Azure Blob Storage.
+ *
+ * Database stores only:
+ *   <filename>
+ *
+ * Blob Storage path is:
+ *   certificates/<filename>
+ */
 async function safeDeleteFile(fileName) {
-  if (!fileName) return;
-  const absolutePath = path.join(UPLOAD_ROOT, 'certificates', fileName);
+  if (!fileName) {
+    return;
+  }
+
   try {
-    await fs.unlink(absolutePath);
+    await blobStorage.deleteFile(
+      `certificates/${fileName}`
+    );
   } catch (err) {
-    // Non-fatal: file may already be gone. Don't block the DB operation on this.
-    if (err.code !== 'ENOENT') {
-      // eslint-disable-next-line no-console
-      console.error('Failed to delete certificate file:', absolutePath, err.message);
-    }
+    // Best effort only. Do not fail a DB operation because the old blob
+    // could not be removed.
+    // eslint-disable-next-line no-console
+    console.error(
+      'Failed to delete certificate blob:',
+      fileName,
+      err.message
+    );
   }
 }
 
-async function listCertifications(requesterUser, targetUserId) {
+async function listCertifications(
+  requesterUser,
+  targetUserId
+) {
   const target = await assertTargetExists(targetUserId);
+
   if (!userService.canViewProfile(requesterUser, target)) {
-    throw AppError.forbidden('You do not have permission to view these certifications');
+    throw AppError.forbidden(
+      'You do not have permission to view these certifications'
+    );
   }
+
   return certificationModel.listByUser(targetUserId);
 }
 
-async function createCertification(requesterUser, targetUserId, payload, file) {
+async function createCertification(
+  requesterUser,
+  targetUserId,
+  payload,
+  file
+) {
   const target = await assertTargetExists(targetUserId);
-  assertCanEdit(requesterUser, targetUserId);
 
-  const cert = await certificationModel.create({
-    userId: targetUserId,
-    name: payload.name,
-    issuingOrganization: payload.issuingOrganization,
-    issueDate: payload.issueDate,
-    expiryDate: payload.expiryDate,
-    credentialId: payload.credentialId,
-    credentialUrl: payload.credentialUrl,
-    filePath: file ? file.filename : null,
-    fileOriginalName: file ? file.originalname : null,
-  });
+  assertCanEdit(
+    requesterUser,
+    targetUserId
+  );
+
+  let uploadedBlobPath = null;
+  let fileName = null;
+
+  // Upload certificate to Azure first.
+  if (file) {
+    try {
+      uploadedBlobPath =
+        await blobStorage.uploadFile(
+          file,
+          'certificates'
+        );
+
+      fileName =
+        uploadedBlobPath.split('/').pop();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        'Certificate Blob upload failed:',
+        err
+      );
+
+      throw AppError.internal(
+        'Failed to upload certificate'
+      );
+    }
+  }
+
+  let cert;
+
+  try {
+    cert = await certificationModel.create({
+      userId: targetUserId,
+      name: payload.name,
+      issuingOrganization:
+        payload.issuingOrganization,
+      issueDate: payload.issueDate,
+      expiryDate: payload.expiryDate,
+      credentialId: payload.credentialId,
+      credentialUrl: payload.credentialUrl,
+      filePath: fileName,
+      fileOriginalName: file
+        ? file.originalname
+        : null,
+    });
+  } catch (err) {
+    // DB operation failed after Blob upload.
+    // Clean up the orphaned Blob.
+    if (uploadedBlobPath) {
+      await blobStorage.deleteFile(
+        uploadedBlobPath
+      );
+    }
+
+    throw err;
+  }
 
   if (requesterUser.id === targetUserId) {
     notificationService
@@ -81,33 +166,118 @@ async function createCertification(requesterUser, targetUserId, payload, file) {
   return cert;
 }
 
-async function updateCertification(requesterUser, targetUserId, certId, payload, file) {
+async function updateCertification(
+  requesterUser,
+  targetUserId,
+  certId,
+  payload,
+  file
+) {
   await assertTargetExists(targetUserId);
-  assertCanEdit(requesterUser, targetUserId);
 
-  const existing = await certificationModel.findById(certId);
-  if (!existing || existing.user_id !== targetUserId) {
-    throw AppError.notFound('Certification not found');
+  assertCanEdit(
+    requesterUser,
+    targetUserId
+  );
+
+  const existing =
+    await certificationModel.findById(certId);
+
+  if (
+    !existing ||
+    existing.user_id !== targetUserId
+  ) {
+    throw AppError.notFound(
+      'Certification not found'
+    );
   }
 
   const fields = {};
-  if (payload.name !== undefined) fields.name = payload.name;
-  if (payload.issuingOrganization !== undefined) fields.issuing_organization = payload.issuingOrganization;
-  if (payload.issueDate !== undefined) fields.issue_date = payload.issueDate;
-  if (payload.expiryDate !== undefined) fields.expiry_date = payload.expiryDate;
-  if (payload.credentialId !== undefined) fields.credential_id = payload.credentialId;
-  if (payload.credentialUrl !== undefined) fields.credential_url = payload.credentialUrl;
 
-  // Replacing the file: delete the old one after the DB write succeeds.
-  let oldFilePath = null;
-  if (file) {
-    fields.file_path = file.filename;
-    fields.file_original_name = file.originalname;
-    oldFilePath = existing.file_path;
+  if (payload.name !== undefined) {
+    fields.name = payload.name;
   }
 
-  const updated = await certificationModel.update(certId, fields);
+  if (
+    payload.issuingOrganization !== undefined
+  ) {
+    fields.issuing_organization =
+      payload.issuingOrganization;
+  }
 
+  if (payload.issueDate !== undefined) {
+    fields.issue_date = payload.issueDate;
+  }
+
+  if (payload.expiryDate !== undefined) {
+    fields.expiry_date = payload.expiryDate;
+  }
+
+  if (payload.credentialId !== undefined) {
+    fields.credential_id = payload.credentialId;
+  }
+
+  if (payload.credentialUrl !== undefined) {
+    fields.credential_url =
+      payload.credentialUrl;
+  }
+
+  let newBlobPath = null;
+  let oldFilePath = null;
+
+  // If a new certificate is supplied, upload the new
+  // file first. This protects the existing file if upload fails.
+  if (file) {
+    try {
+      newBlobPath =
+        await blobStorage.uploadFile(
+          file,
+          'certificates'
+        );
+
+      const newFileName =
+        newBlobPath.split('/').pop();
+
+      fields.file_path = newFileName;
+      fields.file_original_name =
+        file.originalname;
+
+      oldFilePath = existing.file_path;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        'Certificate Blob upload failed:',
+        err
+      );
+
+      throw AppError.internal(
+        'Failed to upload certificate'
+      );
+    }
+  }
+
+  let updated;
+
+  try {
+    updated =
+      await certificationModel.update(
+        certId,
+        fields
+      );
+  } catch (err) {
+    // DB update failed after new Blob upload.
+    // Remove the newly uploaded blob.
+    if (newBlobPath) {
+      await blobStorage.deleteFile(
+        newBlobPath
+      );
+    }
+
+    throw err;
+  }
+
+  // Only remove the old certificate after
+  // the database has successfully switched to the new file.
   if (oldFilePath) {
     await safeDeleteFile(oldFilePath);
   }
@@ -115,19 +285,43 @@ async function updateCertification(requesterUser, targetUserId, certId, payload,
   return updated;
 }
 
-async function deleteCertification(requesterUser, targetUserId, certId) {
+async function deleteCertification(
+  requesterUser,
+  targetUserId,
+  certId
+) {
   await assertTargetExists(targetUserId);
-  assertCanEdit(requesterUser, targetUserId);
 
-  const existing = await certificationModel.findById(certId);
-  if (!existing || existing.user_id !== targetUserId) {
-    throw AppError.notFound('Certification not found');
+  assertCanEdit(
+    requesterUser,
+    targetUserId
+  );
+
+  const existing =
+    await certificationModel.findById(certId);
+
+  if (
+    !existing ||
+    existing.user_id !== targetUserId
+  ) {
+    throw AppError.notFound(
+      'Certification not found'
+    );
   }
 
-  const removed = await certificationModel.remove(certId);
+  const removed =
+    await certificationModel.remove(certId);
+
   if (removed?.file_path) {
-    await safeDeleteFile(removed.file_path);
+    await safeDeleteFile(
+      removed.file_path
+    );
   }
 }
 
-module.exports = { listCertifications, createCertification, updateCertification, deleteCertification };
+module.exports = {
+  listCertifications,
+  createCertification,
+  updateCertification,
+  deleteCertification,
+};

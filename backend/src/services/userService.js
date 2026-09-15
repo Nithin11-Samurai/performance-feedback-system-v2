@@ -9,6 +9,7 @@
 const userModel = require('../models/userModel');
 const AppError = require('../utils/AppError');
 const auditLog = require('../utils/auditLog');
+const blobStorage = require('../utils/blobStorage');
 const { ROLES, isAdminTier } = require('../config/constants');
 
 /**
@@ -24,12 +25,15 @@ function canViewProfile(requester, target) {
 
 async function getProfile(requesterUser, targetUserId) {
   const target = await userModel.findById(targetUserId);
+
   if (!target) {
     throw AppError.notFound('User not found');
   }
+
   if (!canViewProfile(requesterUser, target)) {
     throw AppError.forbidden('You do not have permission to view this profile');
   }
+
   return target;
 }
 
@@ -39,9 +43,11 @@ async function listUsers(requesterUser, filters) {
   if (requesterUser.role === ROLES.MANAGER) {
     return userModel.getDirectReports(requesterUser.id);
   }
+
   if (isAdminTier(requesterUser.role)) {
     return userModel.listAll(filters);
   }
+
   // Plain employees don't get a directory listing at all.
   throw AppError.forbidden('You do not have permission to list users');
 }
@@ -51,6 +57,7 @@ async function getDirectReports(requesterUser, managerId) {
   if (!isAdminTier(requesterUser.role) && requesterUser.id !== managerId) {
     throw AppError.forbidden('You can only view your own direct reports');
   }
+
   return userModel.getDirectReports(managerId);
 }
 
@@ -63,6 +70,7 @@ async function getDirectReports(requesterUser, managerId) {
  */
 async function updateUser(requesterUser, targetUserId, updates, requestMeta = {}) {
   const target = await userModel.findById(targetUserId);
+
   if (!target) {
     throw AppError.notFound('User not found');
   }
@@ -77,47 +85,108 @@ async function updateUser(requesterUser, targetUserId, updates, requestMeta = {}
   let fieldsToApply = {};
 
   if (isAdmin) {
-    if (updates.employeeCode !== undefined) fieldsToApply.employee_code = updates.employeeCode;
-    if (updates.firstName !== undefined) fieldsToApply.first_name = updates.firstName;
-    if (updates.lastName !== undefined) fieldsToApply.last_name = updates.lastName;
-    if (updates.email !== undefined) fieldsToApply.email = updates.email;
-    if (updates.jobTitle !== undefined) fieldsToApply.job_title = updates.jobTitle;
-    if (updates.department !== undefined) fieldsToApply.department = updates.department;
+    if (updates.employeeCode !== undefined) {
+      fieldsToApply.employee_code = updates.employeeCode;
+    }
+
+    if (updates.firstName !== undefined) {
+      fieldsToApply.first_name = updates.firstName;
+    }
+
+    if (updates.lastName !== undefined) {
+      fieldsToApply.last_name = updates.lastName;
+    }
+
+    if (updates.email !== undefined) {
+      fieldsToApply.email = updates.email;
+    }
+
+    if (updates.jobTitle !== undefined) {
+      fieldsToApply.job_title = updates.jobTitle;
+    }
+
+    if (updates.department !== undefined) {
+      fieldsToApply.department = updates.department;
+    }
+
     if (updates.managerId !== undefined) {
       if (updates.managerId === targetUserId) {
         throw AppError.badRequest('A user cannot be their own manager');
       }
+
       fieldsToApply.manager_id = updates.managerId;
     }
+
     if (updates.mentorId !== undefined) {
       if (updates.mentorId === targetUserId) {
         throw AppError.badRequest('A user cannot be their own mentor');
       }
+
       fieldsToApply.mentor_id = updates.mentorId;
     }
+
     if (updates.teamLeadId !== undefined) {
       if (updates.teamLeadId === targetUserId) {
         throw AppError.badRequest('A user cannot be their own team lead');
       }
+
       fieldsToApply.team_lead_id = updates.teamLeadId;
     }
-    if (updates.dateOfJoining !== undefined) fieldsToApply.date_of_joining = updates.dateOfJoining;
-    if (updates.role !== undefined) fieldsToApply.role = updates.role;
-    if (updates.isActive !== undefined) fieldsToApply.is_active = updates.isActive;
-    if (updates.avatarUrl !== undefined) fieldsToApply.avatar_url = updates.avatarUrl;
+
+    if (updates.dateOfJoining !== undefined) {
+      fieldsToApply.date_of_joining = updates.dateOfJoining;
+    }
+
+    if (updates.role !== undefined) {
+      fieldsToApply.role = updates.role;
+    }
+
+    if (updates.isActive !== undefined) {
+      fieldsToApply.is_active = updates.isActive;
+    }
+
+    if (updates.avatarUrl !== undefined) {
+      fieldsToApply.avatar_url = updates.avatarUrl;
+    }
+
     // Admin can also set these on someone's behalf if needed.
-    if (updates.phone !== undefined) fieldsToApply.phone = updates.phone;
-    if (updates.address !== undefined) fieldsToApply.address = updates.address;
-    if (updates.emergencyContactName !== undefined) fieldsToApply.emergency_contact_name = updates.emergencyContactName;
-    if (updates.emergencyContactPhone !== undefined) fieldsToApply.emergency_contact_phone = updates.emergencyContactPhone;
+    if (updates.phone !== undefined) {
+      fieldsToApply.phone = updates.phone;
+    }
+
+    if (updates.address !== undefined) {
+      fieldsToApply.address = updates.address;
+    }
+
+    if (updates.emergencyContactName !== undefined) {
+      fieldsToApply.emergency_contact_name = updates.emergencyContactName;
+    }
+
+    if (updates.emergencyContactPhone !== undefined) {
+      fieldsToApply.emergency_contact_phone = updates.emergencyContactPhone;
+    }
   } else {
-    // Self-service: avatar + personal contact info only. Never identity,
-    // employment, or role fields — those stay HR-controlled.
-    if (updates.avatarUrl !== undefined) fieldsToApply.avatar_url = updates.avatarUrl;
-    if (updates.phone !== undefined) fieldsToApply.phone = updates.phone;
-    if (updates.address !== undefined) fieldsToApply.address = updates.address;
-    if (updates.emergencyContactName !== undefined) fieldsToApply.emergency_contact_name = updates.emergencyContactName;
-    if (updates.emergencyContactPhone !== undefined) fieldsToApply.emergency_contact_phone = updates.emergencyContactPhone;
+    // Self-service: avatar + personal contact info only.
+    // Never identity, employment, or role fields — those stay HR-controlled.
+    if (updates.avatarUrl !== undefined) {
+      fieldsToApply.avatar_url = updates.avatarUrl;
+    }
+
+    if (updates.phone !== undefined) {
+      fieldsToApply.phone = updates.phone;
+    }
+
+    if (updates.address !== undefined) {
+      fieldsToApply.address = updates.address;
+    }
+
+    if (updates.emergencyContactName !== undefined) {
+      fieldsToApply.emergency_contact_name = updates.emergencyContactName;
+    }
+
+    if (updates.emergencyContactPhone !== undefined) {
+      fieldsToApply.emergency_contact_phone = updates.emergencyContactPhone;
+    }
   }
 
   if (Object.keys(fieldsToApply).length === 0) {
@@ -127,11 +196,15 @@ async function updateUser(requesterUser, targetUserId, updates, requestMeta = {}
   // Capture before/after values only for the fields actually being changed,
   // for the audit trail (Feature 9) — no need to snapshot the whole record.
   const oldValue = {};
+
   Object.keys(fieldsToApply).forEach((key) => {
     oldValue[key] = target[key];
   });
 
-  const updated = await userModel.updateProfile(targetUserId, fieldsToApply);
+  const updated = await userModel.updateProfile(
+    targetUserId,
+    fieldsToApply
+  );
 
   if (isAdmin && !isSelf) {
     await auditLog.record(
@@ -140,38 +213,66 @@ async function updateUser(requesterUser, targetUserId, updates, requestMeta = {}
       'user',
       targetUserId,
       { changedFields: Object.keys(fieldsToApply) },
-      { ...requestMeta, oldValue, newValue: fieldsToApply }
+      {
+        ...requestMeta,
+        oldValue,
+        newValue: fieldsToApply,
+      }
     );
   }
 
   return updated;
 }
 
-async function setActiveStatus(requesterUser, targetUserId, isActive, requestMeta = {}) {
+async function setActiveStatus(
+  requesterUser,
+  targetUserId,
+  isActive,
+  requestMeta = {}
+) {
   if (requesterUser.id === targetUserId) {
-    throw AppError.badRequest('You cannot activate/deactivate your own account');
+    throw AppError.badRequest(
+      'You cannot activate/deactivate your own account'
+    );
   }
+
   const target = await userModel.findById(targetUserId);
+
   if (!target) {
     throw AppError.notFound('User not found');
   }
-  const updated = await userModel.updateProfile(targetUserId, { is_active: isActive });
+
+  const updated = await userModel.updateProfile(
+    targetUserId,
+    { is_active: isActive }
+  );
+
   await auditLog.record(
     requesterUser.id,
     isActive ? 'REACTIVATE_USER' : 'DEACTIVATE_USER',
     'user',
     targetUserId,
     {},
-    { ...requestMeta, oldValue: { is_active: target.is_active }, newValue: { is_active: isActive } }
+    {
+      ...requestMeta,
+      oldValue: { is_active: target.is_active },
+      newValue: { is_active: isActive },
+    }
   );
+
   return updated;
 }
 
 async function listDepartments() {
   const { query } = require('../config/db');
+
   const result = await query(
-    `SELECT DISTINCT department FROM users WHERE department IS NOT NULL ORDER BY department`
+    `SELECT DISTINCT department
+     FROM users
+     WHERE department IS NOT NULL
+     ORDER BY department`
   );
+
   return result.rows.map((r) => r.department);
 }
 
@@ -179,25 +280,41 @@ async function listDepartments() {
  * Bulk-assign a list of employees to a manager in one call (Feature 5).
  * Admin only. `managerId` may be null to remove them from any manager.
  */
-async function bulkAssignManager(requesterUser, employeeIds, managerId, requestMeta = {}) {
+async function bulkAssignManager(
+  requesterUser,
+  employeeIds,
+  managerId,
+  requestMeta = {}
+) {
   if (!isAdminTier(requesterUser.role)) {
     throw AppError.forbidden('Only HR/Admin can bulk-assign managers');
   }
+
   if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
     throw AppError.badRequest('employeeIds must be a non-empty array');
   }
+
   if (managerId && employeeIds.includes(managerId)) {
-    throw AppError.badRequest('A manager cannot be assigned as their own manager');
+    throw AppError.badRequest(
+      'A manager cannot be assigned as their own manager'
+    );
   }
 
-  const updated = await userModel.bulkAssignManager(employeeIds, managerId || null);
+  const updated = await userModel.bulkAssignManager(
+    employeeIds,
+    managerId || null
+  );
 
   await auditLog.record(
     requesterUser.id,
     'BULK_ASSIGN_MANAGER',
     'user',
     null,
-    { employeeIds, managerId: managerId || null, count: updated.length },
+    {
+      employeeIds,
+      managerId: managerId || null,
+      count: updated.length,
+    },
     requestMeta
   );
 
@@ -214,39 +331,84 @@ async function countUsers(requesterUser, filters) {
     const reports = await userModel.getDirectReports(requesterUser.id);
     return reports.length;
   }
+
   if (isAdminTier(requesterUser.role)) {
     return userModel.countAll(filters);
   }
+
   throw AppError.forbidden('You do not have permission to list users');
 }
 
 /**
- * Set a user's avatar from an uploaded file. Same self-or-admin rule as
- * the rest of updateUser, but split into its own function since it deals
- * with a file path rather than arbitrary profile fields.
+ * Set a user's avatar from an uploaded file.
+ *
+ * The file is held in memory by Multer and uploaded directly to
+ * Azure Blob Storage.
+ *
+ * Stored database value remains:
+ *   /uploads/avatars/<filename>
+ *
+ * This keeps the frontend unchanged while the actual file is stored
+ * securely in the private Azure Blob container.
  */
-async function updateAvatar(requesterUser, targetUserId, fileName) {
+async function updateAvatar(requesterUser, targetUserId, file) {
   const target = await userModel.findById(targetUserId);
+
   if (!target) {
     throw AppError.notFound('User not found');
   }
+
   const isSelf = requesterUser.id === targetUserId;
   const isAdmin = isAdminTier(requesterUser.role);
+
   if (!isSelf && !isAdmin) {
-    throw AppError.forbidden('You do not have permission to update this profile picture');
+    throw AppError.forbidden(
+      'You do not have permission to update this profile picture'
+    );
   }
 
-  const oldAvatarUrl = target.avatar_url;
-  const avatarUrl = `/uploads/avatars/${fileName}`;
-  const updated = await userModel.updateProfile(targetUserId, { avatar_url: avatarUrl });
+  if (!file?.buffer) {
+    throw AppError.badRequest('No avatar file was uploaded');
+  }
 
-  // Clean up the previous file so replacing a photo repeatedly doesn't
-  // silently accumulate orphaned files on disk.
-  if (oldAvatarUrl && oldAvatarUrl.startsWith('/uploads/avatars/')) {
-    const fs = require('fs');
-    const path = require('path');
-    const oldPath = path.join(__dirname, '../../uploads/avatars', path.basename(oldAvatarUrl));
-    fs.unlink(oldPath, () => {}); // best-effort, don't fail the request over this
+  // Upload the new file first. This prevents the existing avatar from
+  // being deleted if the new Blob upload fails.
+  let blobPath;
+
+  try {
+    blobPath = await blobStorage.uploadFile(file, 'avatars');
+  } catch (err) {
+    console.error('Avatar Blob upload failed:', err);
+    throw AppError.internal('Failed to upload profile picture');
+  }
+
+  const fileName = blobPath.split('/').pop();
+  const avatarUrl = `/uploads/avatars/${fileName}`;
+
+  let updated;
+
+  try {
+    updated = await userModel.updateProfile(
+      targetUserId,
+      { avatar_url: avatarUrl }
+    );
+  } catch (err) {
+    // Database update failed after Blob upload, so clean up the newly
+    // uploaded Blob to avoid leaving an orphaned file.
+    await blobStorage.deleteFile(blobPath);
+    throw err;
+  }
+
+  // Delete the old Azure Blob only after the database update succeeds.
+  if (target.avatar_url) {
+    const oldFileName = target.avatar_url
+      .split('/')
+      .filter(Boolean)
+      .pop();
+
+    if (oldFileName) {
+      await blobStorage.deleteFile(`avatars/${oldFileName}`);
+    }
   }
 
   return updated;
@@ -258,23 +420,37 @@ async function updateAvatar(requesterUser, targetUserId, fileName) {
  */
 async function removeAvatar(requesterUser, targetUserId) {
   const target = await userModel.findById(targetUserId);
+
   if (!target) {
     throw AppError.notFound('User not found');
   }
+
   const isSelf = requesterUser.id === targetUserId;
   const isAdmin = isAdminTier(requesterUser.role);
+
   if (!isSelf && !isAdmin) {
-    throw AppError.forbidden('You do not have permission to update this profile picture');
+    throw AppError.forbidden(
+      'You do not have permission to update this profile picture'
+    );
   }
 
   const oldAvatarUrl = target.avatar_url;
-  const updated = await userModel.updateProfile(targetUserId, { avatar_url: null });
 
+  const updated = await userModel.updateProfile(
+    targetUserId,
+    { avatar_url: null }
+  );
+
+  // Only delete files that belong to the new Blob-backed upload system.
   if (oldAvatarUrl && oldAvatarUrl.startsWith('/uploads/avatars/')) {
-    const fs = require('fs');
-    const path = require('path');
-    const oldPath = path.join(__dirname, '../../uploads/avatars', path.basename(oldAvatarUrl));
-    fs.unlink(oldPath, () => {});
+    const oldFileName = oldAvatarUrl
+      .split('/')
+      .filter(Boolean)
+      .pop();
+
+    if (oldFileName) {
+      await blobStorage.deleteFile(`avatars/${oldFileName}`);
+    }
   }
 
   return updated;
@@ -287,22 +463,36 @@ async function removeAvatar(requesterUser, targetUserId) {
  */
 async function globalSearch(requesterUser, term) {
   if (!term || term.trim().length < 2) {
-    throw AppError.badRequest('Search term must be at least 2 characters');
+    throw AppError.badRequest(
+      'Search term must be at least 2 characters'
+    );
   }
+
   if (requesterUser.role === ROLES.MANAGER) {
-    return userModel.globalSearch(term, { managerId: requesterUser.id });
+    return userModel.globalSearch(term, {
+      managerId: requesterUser.id,
+    });
   }
+
   if (isAdminTier(requesterUser.role)) {
     return userModel.globalSearch(term, {});
   }
-  throw AppError.forbidden('You do not have permission to search employees');
+
+  throw AppError.forbidden(
+    'You do not have permission to search employees'
+  );
 }
 
-const DELETE_CAPABLE_ROLES = [ROLES.HR_MANAGER, ROLES.GLOBAL_ADMIN];
+const DELETE_CAPABLE_ROLES = [
+  ROLES.HR_MANAGER,
+  ROLES.GLOBAL_ADMIN,
+];
 
 function assertCanDelete(requesterUser) {
   if (!DELETE_CAPABLE_ROLES.includes(requesterUser.role)) {
-    throw AppError.forbidden('Only HR Manager or Global Admin can delete employee records');
+    throw AppError.forbidden(
+      'Only HR Manager or Global Admin can delete employee records'
+    );
   }
 }
 
@@ -310,47 +500,78 @@ function assertCanDelete(requesterUser) {
  * Item 5: soft-delete. Nothing referencing this employee is touched —
  * restoring later brings back everything exactly as it was.
  */
-async function deleteEmployee(requesterUser, targetUserId, requestMeta = {}) {
+async function deleteEmployee(
+  requesterUser,
+  targetUserId,
+  requestMeta = {}
+) {
   assertCanDelete(requesterUser);
+
   if (requesterUser.id === targetUserId) {
     throw AppError.badRequest('You cannot delete your own account');
   }
+
   const target = await userModel.findById(targetUserId);
+
   if (!target) {
     throw AppError.notFound('User not found');
   }
+
   if (target.deleted_at) {
-    throw AppError.badRequest('This employee has already been deleted');
+    throw AppError.badRequest(
+      'This employee has already been deleted'
+    );
   }
 
-  const deleted = await userModel.softDelete(targetUserId, requesterUser.id);
+  const deleted = await userModel.softDelete(
+    targetUserId,
+    requesterUser.id
+  );
+
   await auditLog.record(
     requesterUser.id,
     'DELETE_USER',
     'user',
     targetUserId,
-    { employeeCode: target.employee_code, email: target.email },
+    {
+      employeeCode: target.employee_code,
+      email: target.email,
+    },
     requestMeta
   );
+
   return deleted;
 }
 
-async function restoreEmployee(requesterUser, targetUserId, requestMeta = {}) {
+async function restoreEmployee(
+  requesterUser,
+  targetUserId,
+  requestMeta = {}
+) {
   assertCanDelete(requesterUser);
+
   const target = await userModel.findDeletedById(targetUserId);
+
   if (!target) {
-    throw AppError.notFound('This employee is not in the Recently Deleted list');
+    throw AppError.notFound(
+      'This employee is not in the Recently Deleted list'
+    );
   }
 
   const restored = await userModel.restore(targetUserId);
+
   await auditLog.record(
     requesterUser.id,
     'RESTORE_USER',
     'user',
     targetUserId,
-    { employeeCode: target.employee_code, email: target.email },
+    {
+      employeeCode: target.employee_code,
+      email: target.email,
+    },
     requestMeta
   );
+
   return restored;
 }
 
