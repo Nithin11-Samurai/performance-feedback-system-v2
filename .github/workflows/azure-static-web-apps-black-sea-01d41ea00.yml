@@ -17,6 +17,8 @@ jobs:
 
     env:
       VITE_API_URL: https://ps-performance-feedback-api-fpd9bzf8e7c3dwf0.centralindia-01.azurewebsites.net/api
+      VITE_ENTRA_CLIENT_ID: a6d46de3-627d-403e-852f-a0bc4ecfbd8f
+      VITE_ENTRA_TENANT_ID: 027f1a1b-3e07-46c2-96fa-36fbce2efa8f
 
     steps:
       - uses: actions/checkout@v3
