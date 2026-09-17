@@ -68,6 +68,15 @@
            px-3 py-2 text-sm transition-all duration-150 outline-none
            focus:border-primary-400 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900/50;
   }
+  /* .input already has its own clearly-visible focus treatment (border +
+     ring above) — the base-layer input:focus-visible outline rule was
+     stacking a THIRD indicator on top of that for every .input-styled
+     field, reading as an ugly double border. Scoped to .input only, so
+     bare inputs elsewhere that don't have their own focus styling keep
+     relying on that base-layer outline as their accessibility floor. */
+  .input:focus-visible {
+    outline: none;
+  }
 
   .label {
     @apply block text-xs font-medium uppercase tracking-wide text-ink-light/60 dark:text-ink-dark/60 mb-1;

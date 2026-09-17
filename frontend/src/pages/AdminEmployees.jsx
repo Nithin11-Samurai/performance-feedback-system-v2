@@ -1695,7 +1695,7 @@ showToast("Delete failed","error");
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-<div className={`grid grid-cols-1 gap-6 ${directoryOpen ? 'lg:grid-cols-[460px_1fr]' : 'lg:grid-cols-[56px_1fr]'}`}>   {/* Populated from the managed catalog (Settings page) — referenced by
+<div className={`grid grid-cols-1 items-start gap-6 ${directoryOpen ? 'lg:grid-cols-[460px_1fr]' : 'lg:grid-cols-[56px_1fr]'}`}>   {/* Populated from the managed catalog (Settings page) — referenced by
           `list=` on the department/job-title inputs below and in OverviewTab,
           regardless of component nesting (datalist lookup is DOM-global). */}
       <datalist id="dept-catalog-list">
@@ -1914,27 +1914,16 @@ Delete Selected
       {selected ? (
         <EmployeeDetail employee={selected} managers={managers} onUpdated={handleUpdated} onDeleted={handleDeleted} />
       ) : (
-        <div className="flex h-full items-center justify-center">
-
-<div className="text-center">
-
-<div className="mb-5 text-7xl">
-👤
-</div>
-
-<h2 className="text-xl font-bold">
-Select an Employee
-</h2>
-
-<p className="mt-3 max-w-md text-sm text-ink-light/50">
-Choose an employee from the directory to view their
-profile, skills, certifications, review history,
-permissions and internal notes.
-</p>
-
-</div>
-
-</div>
+        <div className="card card-reviews flex min-h-[420px] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-5 text-7xl">👤</div>
+            <h2 className="text-xl font-bold">Select an Employee</h2>
+            <p className="mt-3 max-w-md text-sm text-ink-light/50">
+              Choose an employee from the directory to view their profile, skills, certifications, review history,
+              permissions and internal notes.
+            </p>
+          </div>
+        </div>
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add new employee">
