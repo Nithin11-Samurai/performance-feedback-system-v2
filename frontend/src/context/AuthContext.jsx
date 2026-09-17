@@ -14,9 +14,6 @@ import { loginRequest } from '../auth/msalConfig';
 
 const AuthContext = createContext(null);
 
-const MICROSOFT_SSO_PENDING =
-  'microsoft_sso_pending';
-
 export function AuthProvider({ children }) {
   const { instance } = useMsal();
 
@@ -51,109 +48,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ---------------------------------------------------------
-  // Complete Microsoft SSO after redirect
-  // ---------------------------------------------------------
-  useEffect(() => {
-    const pending =
-      sessionStorage.getItem(
-        MICROSOFT_SSO_PENDING
-      ) === 'true';
-
-    if (!pending) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function completeMicrosoftLogin() {
-      try {
-        setLoading(true);
-        setMicrosoftError('');
-
-        const accounts =
-          instance.getAllAccounts();
-
-        console.log(
-          'MSAL accounts after initialization:',
-          accounts
-        );
-
-        if (!accounts.length) {
-          throw new Error(
-            'Microsoft sign-in completed, but no Microsoft account was found.'
-          );
-        }
-
-        const account = accounts[0];
-
-        const tokenResponse =
-          await instance.acquireTokenSilent({
-            ...loginRequest,
-            account,
-          });
-
-        if (!tokenResponse?.accessToken) {
-          throw new Error(
-            'Microsoft did not return an access token.'
-          );
-        }
-
-        console.log(
-          'Microsoft access token acquired successfully.'
-        );
-
-        const loggedInUser =
-          await authService.loginWithMicrosoft(
-            tokenResponse.accessToken,
-            true
-          );
-
-        console.log(
-          'Application login successful:',
-          loggedInUser
-        );
-
-        if (!cancelled) {
-          setUser(loggedInUser);
-        }
-
-        sessionStorage.removeItem(
-          MICROSOFT_SSO_PENDING
-        );
-      } catch (err) {
-        console.error(
-          'Microsoft SSO failed:',
-          err
-        );
-
-        if (!cancelled) {
-          const message =
-            err.response?.data?.message ||
-            err.message ||
-            'Microsoft sign-in failed.';
-
-          setMicrosoftError(message);
-          setUser(null);
-        }
-
-        sessionStorage.removeItem(
-          MICROSOFT_SSO_PENDING
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    completeMicrosoftLogin();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [instance]);
-
-  // ---------------------------------------------------------
   // Normal login
   // ---------------------------------------------------------
   const login = useCallback(
@@ -177,20 +71,45 @@ export function AuthProvider({ children }) {
   );
 
   // ---------------------------------------------------------
-  // Microsoft login
+  // Microsoft login (popup flow, not redirect)
   // ---------------------------------------------------------
+  // Switched from loginRedirect + a "pending" flag picked up on the next
+  // page load to loginPopup, which keeps this tab's JS context alive the
+  // whole time and resolves with the result directly — no full-page
+  // navigation away and back, so there's no "did the temporary request
+  // cache survive the round trip" question at all. This entirely
+  // sidesteps the no_token_request_cache_error class of failure the
+  // redirect flow was hitting in production.
   const microsoftLogin = useCallback(
     async () => {
       setMicrosoftError('');
 
-      sessionStorage.setItem(
-        MICROSOFT_SSO_PENDING,
-        'true'
-      );
+      try {
+        const result = await instance.loginPopup(loginRequest);
 
-      await instance.loginRedirect(
-        loginRequest
-      );
+        if (!result?.accessToken) {
+          throw new Error(
+            'Microsoft did not return an access token.'
+          );
+        }
+
+        const loggedInUser =
+          await authService.loginWithMicrosoft(
+            result.accessToken,
+            true
+          );
+
+        setUser(loggedInUser);
+        return loggedInUser;
+      } catch (err) {
+        const message =
+          err.response?.data?.message ||
+          err.message ||
+          'Microsoft sign-in failed.';
+
+        setMicrosoftError(message);
+        throw err;
+      }
     },
     [instance]
   );
@@ -203,10 +122,6 @@ export function AuthProvider({ children }) {
       await authService.logout();
 
       setUser(null);
-
-      sessionStorage.removeItem(
-        MICROSOFT_SSO_PENDING
-      );
 
       await instance.logoutRedirect({
         postLogoutRedirectUri:

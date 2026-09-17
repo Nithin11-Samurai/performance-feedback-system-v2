@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   LogIn,
@@ -9,14 +9,11 @@ import {
 import AuthLayout from '../layouts/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 
-const MICROSOFT_SSO_PENDING = 'microsoft_sso_pending';
-
 export default function Login() {
   const {
     login,
     microsoftLogin,
     microsoftError,
-    user,
     loading: authLoading,
   } = useAuth();
 
@@ -34,34 +31,6 @@ export default function Login() {
 
   const redirectTo =
     location.state?.from?.pathname || '/dashboard';
-
-  // Surface a Microsoft sign-in failure that main.jsx caught during MSAL's
-  // redirect processing (before this component even mounted) — previously
-  // silent, so the page just looked like it "did nothing" and returned to
-  // login. See main.jsx's bootstrap() for where this gets set.
-  useEffect(() => {
-    const msalError = sessionStorage.getItem('msal_redirect_error');
-    if (msalError) {
-      setError(msalError);
-      sessionStorage.removeItem('msal_redirect_error');
-    }
-  }, []);
-
-  // After Microsoft redirects back to the application,
-  // AuthContext completes the SSO flow and sets the user.
-  // Once that happens, send the user to the original destination.
-  useEffect(() => {
-    const microsoftLoginPending =
-      sessionStorage.getItem(MICROSOFT_SSO_PENDING) === 'true';
-
-    if (user && microsoftLoginPending && !authLoading) {
-      sessionStorage.removeItem(MICROSOFT_SSO_PENDING);
-
-      navigate(redirectTo, {
-        replace: true,
-      });
-    }
-  }, [user, authLoading, navigate, redirectTo]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -85,23 +54,29 @@ export default function Login() {
     }
   }
 
+  // Popup-based flow: microsoftLogin() resolves (or rejects) directly, in
+  // this same page load — no separate "pending" flag or effect watching
+  // for the app to reload and pick up where it left off, since the tab
+  // never navigates away in the first place.
   async function handleMicrosoftLogin() {
     setError('');
     setMicrosoftSubmitting(true);
 
     try {
       await microsoftLogin();
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error('Microsoft login failed:', err);
-
-      sessionStorage.removeItem(MICROSOFT_SSO_PENDING);
-
+      // microsoftError (from context) already covers this, but setting
+      // the local error too keeps a single consistent path for anything
+      // microsoftLogin() throws before even reaching AuthContext's own
+      // catch (e.g. the popup being blocked or closed by the user).
       setError(
         err.response?.data?.message ||
           err.message ||
           'Unable to sign in with Microsoft. Please try again.'
       );
-
+    } finally {
       setMicrosoftSubmitting(false);
     }
   }
@@ -111,12 +86,6 @@ export default function Login() {
     microsoftSubmitting ||
     authLoading;
 
-  // Two separate error sources feed the same banner: `error` is set by
-  // this component's own try/catch (password login, or a Microsoft login
-  // that fails before the redirect even happens); `microsoftError` comes
-  // from AuthContext's completeMicrosoftLogin() effect, which runs after
-  // the redirect back from Microsoft and is where the actual backend
-  // token exchange happens — previously set but never displayed anywhere.
   const displayError = error || microsoftError;
 
   return (
