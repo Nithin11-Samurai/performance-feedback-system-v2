@@ -73,6 +73,20 @@ module.exports = {
     entra: {
     tenantId: process.env.ENTRA_TENANT_ID,
     clientId: process.env.ENTRA_CLIENT_ID,
+    // Confidential-client (server-side) SSO flow — replaces the earlier
+    // browser-only popup/redirect approach, which hit hard platform
+    // limits on Azure Static Web Apps (popup-monitoring blocked by COOP,
+    // apparently not fully overridable via staticwebapp.config.json).
+    // This flow never depends on the browser being able to inspect a
+    // popup window at all: the whole token exchange happens here, on the
+    // backend, and the frontend only ever handles a single redirect
+    // + a short-lived one-time code.
+    clientSecret: process.env.ENTRA_CLIENT_SECRET,
+    // Must exactly match a Redirect URI registered on the Entra app under
+    // the "Web" platform (NOT "Single-page application" — that's a
+    // separate registration used by the old popup flow and can stay or
+    // be removed independently of this one).
+    redirectUri: process.env.ENTRA_REDIRECT_URI,
   },
 
   uploads: {
@@ -85,3 +99,13 @@ module.exports = {
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 200,
   },
 };
+
+// Convenience flag: is the confidential-client SSO flow fully configured?
+// Checked once here rather than repeating the same four-field check at
+// every call site (route registration, login-page status endpoint, etc.).
+module.exports.entra.isConfigured = Boolean(
+  module.exports.entra.tenantId &&
+    module.exports.entra.clientId &&
+    module.exports.entra.clientSecret &&
+    module.exports.entra.redirectUri
+);

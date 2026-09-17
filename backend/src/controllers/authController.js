@@ -4,6 +4,8 @@
  */
 const asyncHandler = require('../utils/asyncHandler');
 const authService = require('../services/authService');
+const ssoService = require('../services/ssoService');
+const config = require('../config/env');
 const { getRequestMeta } = require('../utils/requestMeta');
 
 const register = asyncHandler(async (req, res) => {
@@ -169,6 +171,67 @@ const resetPasswordOtp = asyncHandler(async (req, res) => {
   });
 });
 
+// ---------------------------------------------------------
+// Backend-driven Microsoft SSO (see ssoService.js for why this
+// replaced the earlier browser-only popup/redirect approach)
+// ---------------------------------------------------------
+
+// GET /api/auth/sso/status — lets the login page know whether to show the
+// "Sign in with Microsoft" button, without needing a frontend rebuild
+// whenever SSO gets configured or reconfigured on the backend.
+const ssoStatus = asyncHandler(async (req, res) => {
+  res.json({ success: true, data: { enabled: config.entra.isConfigured } });
+});
+
+// GET /api/auth/sso/login — full-page redirect to Microsoft. Not
+// asyncHandler-wrapped for its error path: this is a browser navigation,
+// not an XHR call, so a JSON error response would just render as a raw
+// JSON page instead of something the person can act on.
+const ssoLogin = async (req, res) => {
+  if (!config.entra.isConfigured) {
+    return res.redirect(`${config.clientUrl}/login?error=sso_not_configured`);
+  }
+  try {
+    const redirectTo = typeof req.query.redirect === 'string' ? req.query.redirect : '';
+    const authUrl = await ssoService.getAuthUrl(redirectTo);
+    res.redirect(authUrl);
+  } catch (err) {
+    res.redirect(`${config.clientUrl}/login?error=sso_failed`);
+  }
+};
+
+// GET /api/auth/sso/callback — Microsoft redirects here after sign-in.
+// Exchanges the code server-side, then bounces the browser to the
+// frontend with a short-lived one-time code (see ssoExchangeStore.js)
+// rather than putting real tokens in a URL.
+const ssoCallback = async (req, res) => {
+  const { code, error, state } = req.query;
+  if (error) {
+    return res.redirect(`${config.clientUrl}/login?error=sso_failed`);
+  }
+  try {
+    const exchangeCode = await ssoService.handleCallback(code);
+    const redirectParam = state ? `&redirect=${encodeURIComponent(state)}` : '';
+    res.redirect(`${config.clientUrl}/sso-callback?code=${exchangeCode}${redirectParam}`);
+  } catch (err) {
+    const reason = err.statusCode === 403 ? 'sso_no_account' : 'sso_failed';
+    res.redirect(`${config.clientUrl}/login?error=${reason}`);
+  }
+};
+
+// POST /api/auth/sso/exchange — the frontend's /sso-callback page calls
+// this immediately with the one-time code to get real tokens back as
+// JSON, same shape as a normal /auth/login response.
+const ssoExchange = asyncHandler(async (req, res) => {
+  const { code } = req.body;
+  const { user, accessToken, refreshToken } = ssoService.exchangeCode(code);
+  res.json({
+    success: true,
+    message: 'Login successful',
+    data: { user, accessToken, refreshToken },
+  });
+});
+
 module.exports = {
   register,
   login,
@@ -182,4 +245,8 @@ module.exports = {
   forgotPasswordOtp,
   verifyResetOtp,
   resetPasswordOtp,
+  ssoStatus,
+  ssoLogin,
+  ssoCallback,
+  ssoExchange,
 };

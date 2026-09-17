@@ -179,4 +179,4 @@ api.interceptors.response.use(
   }
 );
 
-export { api, getTokens, setTokens, clearTokens, getActiveStorage };
+export { api, getTokens, setTokens, clearTokens, getActiveStorage, API_BASE_URL };

@@ -116,4 +116,11 @@ router.post(
   authController.resetPasswordOtp
 );
 
+// Backend-driven Microsoft SSO — see ssoService.js for the full flow. All
+// public (no `authenticate`): these ARE the login step, same as /login.
+router.get('/sso/status', authController.ssoStatus);
+router.get('/sso/login', authController.ssoLogin);
+router.get('/sso/callback', authController.ssoCallback);
+router.post('/sso/exchange', authController.ssoExchange);
+
 module.exports = router;

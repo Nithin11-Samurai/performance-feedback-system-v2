@@ -562,4 +562,5 @@ module.exports = {
   verifyPasswordResetOtp,
   resetPasswordWithOtp,
   sendWelcomeEmail,
+  issueTokenPair, // exported for ssoService.js — the backend-driven SSO flow issues the same token pair shape as password login
 };

@@ -181,6 +181,34 @@ export async function registerUser(payload) {
   return data.data.user;
 }
 
+// Backend-driven SSO (replaces the earlier browser-only popup/redirect
+// approach — see ssoService.js on the backend for why).
+
+// Whether the login page should show the "Sign in with Microsoft" button
+// at all. Checked at runtime, not a build-time env var, so turning SSO
+// on/off on the backend doesn't require a frontend rebuild.
+export async function getSsoStatus() {
+  try {
+    const { data } = await api.get('/auth/sso/status');
+    return Boolean(data.data.enabled);
+  } catch {
+    // If the check itself fails, fail closed — hide the button rather
+    // than show one that won't work.
+    return false;
+  }
+}
+
+// The /sso-callback page calls this with the one-time exchange code to
+// get real tokens back, same shape as a password login.
+export async function completeSso(exchangeCode) {
+  const { data } = await api.post('/auth/sso/exchange', { code: exchangeCode });
+  // SSO has no "remember me" checkbox of its own — default to a
+  // persistent session, matching how corporate SSO normally behaves.
+  setTokens(data.data, true);
+  getActiveStorage().setItem('user', JSON.stringify(data.data.user));
+  return data.data.user;
+}
+
 export function getStoredUser() {
   const raw =
     getActiveStorage().getItem('user');

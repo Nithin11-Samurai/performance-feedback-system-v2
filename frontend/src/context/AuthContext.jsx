@@ -9,14 +9,9 @@ import {
 import * as authService from '../services/authService';
 import { getTokens } from '../services/api';
 
-import { useMsal } from '@azure/msal-react';
-import { loginRequest } from '../auth/msalConfig';
-
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const { instance } = useMsal();
-
   const [user, setUser] = useState(
     authService.getStoredUser()
   );
@@ -71,34 +66,17 @@ export function AuthProvider({ children }) {
   );
 
   // ---------------------------------------------------------
-  // Microsoft login (popup flow, not redirect)
+  // Microsoft SSO (backend-driven — see ssoService.js on the backend).
+  // Called by the /sso-callback page once it has the one-time exchange
+  // code from the redirect. No MSAL browser SDK involved at all: the
+  // entire Microsoft token exchange happens server-side, so there's no
+  // popup to monitor and no browser-side temporary cache to lose.
   // ---------------------------------------------------------
-  // Switched from loginRedirect + a "pending" flag picked up on the next
-  // page load to loginPopup, which keeps this tab's JS context alive the
-  // whole time and resolves with the result directly — no full-page
-  // navigation away and back, so there's no "did the temporary request
-  // cache survive the round trip" question at all. This entirely
-  // sidesteps the no_token_request_cache_error class of failure the
-  // redirect flow was hitting in production.
-  const microsoftLogin = useCallback(
-    async () => {
+  const loginWithSso = useCallback(
+    async (exchangeCode) => {
       setMicrosoftError('');
-
       try {
-        const result = await instance.loginPopup(loginRequest);
-
-        if (!result?.accessToken) {
-          throw new Error(
-            'Microsoft did not return an access token.'
-          );
-        }
-
-        const loggedInUser =
-          await authService.loginWithMicrosoft(
-            result.accessToken,
-            true
-          );
-
+        const loggedInUser = await authService.completeSso(exchangeCode);
         setUser(loggedInUser);
         return loggedInUser;
       } catch (err) {
@@ -106,12 +84,11 @@ export function AuthProvider({ children }) {
           err.response?.data?.message ||
           err.message ||
           'Microsoft sign-in failed.';
-
         setMicrosoftError(message);
         throw err;
       }
     },
-    [instance]
+    []
   );
 
   // ---------------------------------------------------------
@@ -120,15 +97,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(
     async () => {
       await authService.logout();
-
       setUser(null);
-
-      await instance.logoutRedirect({
-        postLogoutRedirectUri:
-          window.location.origin,
-      });
     },
-    [instance]
+    []
   );
 
   // ---------------------------------------------------------
@@ -152,7 +123,7 @@ export function AuthProvider({ children }) {
         user,
         loading,
         login,
-        microsoftLogin,
+        loginWithSso,
         microsoftError,
         logout,
         refreshUser,

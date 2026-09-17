@@ -11,6 +11,7 @@ import LoadingOverlay from './components/LoadingOverlay';
 import ProtectedRoute from './components/ProtectedRoute';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
+import SsoCallback from './pages/SsoCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -81,6 +82,7 @@ function AppShell() {
       <AuthBootstrapLoader />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/sso-callback" element={<SsoCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
