@@ -13,8 +13,10 @@ import { API_BASE_URL } from '../services/api';
 
 const SSO_ERROR_MESSAGES = {
   sso_failed: 'Microsoft sign-in failed. Please try again.',
-  sso_no_account: 'No account is linked to this Microsoft sign-in. Contact HR to get set up.',
-  sso_not_configured: 'Microsoft sign-in is not set up yet. Please use your email and password.',
+  sso_no_account:
+    'No account is linked to this Microsoft sign-in. Contact HR to get set up.',
+  sso_not_configured:
+    'Microsoft sign-in is not set up yet. Please use your email and password.',
 };
 
 export default function Login() {
@@ -39,19 +41,18 @@ export default function Login() {
   const redirectTo =
     location.state?.from?.pathname || '/dashboard';
 
-  // Backend-driven SSO redirects failures back here as ?error=... (see
-  // authController.js ssoLogin/ssoCallback) rather than a raw JSON error
-  // page, since this is a full browser navigation, not an XHR call.
+  // Backend-driven SSO redirects failures back here as ?error=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const ssoError = params.get('error');
+
     if (ssoError && SSO_ERROR_MESSAGES[ssoError]) {
       setError(SSO_ERROR_MESSAGES[ssoError]);
     }
   }, [location.search]);
 
-  // Ask the backend whether SSO is actually configured before showing the
-  // button — avoids showing one that would just fail if it isn't set up.
+  // Ask the backend whether SSO is actually configured before showing
+  // the Microsoft button.
   useEffect(() => {
     getSsoStatus().then(setSsoEnabled);
   }, []);
@@ -78,15 +79,17 @@ export default function Login() {
     }
   }
 
-  // Backend-driven SSO: this is a full-page redirect to the backend,
-  // which redirects to Microsoft, then back to /sso-callback with a
-  // one-time code once the backend has completed the exchange. No popup,
-  // no MSAL browser SDK, no COOP dependency — see ssoService.js on the
-  // backend for the full flow and why this replaced the earlier
-  // browser-only popup/redirect approaches.
+  // Backend-driven SSO:
+  // Full-page redirect to the backend, which redirects to Microsoft,
+  // then back to /sso-callback with a one-time code.
+  // No popup, no MSAL browser SDK.
   function handleMicrosoftSignIn() {
-    const url = new URL(`${API_BASE_URL}/auth/sso/login`);
+    const url = new URL(
+      `${API_BASE_URL}/auth/sso/login`
+    );
+
     url.searchParams.set('redirect', redirectTo);
+
     window.location.href = url.toString();
   }
 
@@ -110,37 +113,9 @@ export default function Login() {
             size={16}
             className="mt-0.5 flex-shrink-0"
           />
+
           <span>{displayError}</span>
         </div>
-      )}
-
-      {ssoEnabled && (
-        <>
-          <button
-            type="button"
-            onClick={handleMicrosoftSignIn}
-            disabled={isSubmitting}
-            className="mb-4 flex w-full items-center justify-center gap-3 rounded-md border border-ink-light/15 bg-white px-4 py-2.5 text-sm font-medium text-ink-light shadow-sm transition hover:bg-ink-light/5 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ink-dark/15 dark:bg-ink-dark/5 dark:text-ink-dark dark:hover:bg-ink-dark/10"
-          >
-            <span className="flex h-5 w-5 items-center justify-center">
-              <span className="grid h-4 w-4 grid-cols-2 grid-rows-2 gap-[1px]">
-                <span className="bg-[#f25022]" />
-                <span className="bg-[#7fba00]" />
-                <span className="bg-[#00a4ef]" />
-                <span className="bg-[#ffb900]" />
-              </span>
-            </span>
-            <span>Sign in with Microsoft</span>
-          </button>
-
-          <div className="mb-4 flex items-center gap-3">
-            <div className="h-px flex-1 bg-ink-light/10 dark:bg-ink-dark/10" />
-            <span className="text-xs font-medium uppercase tracking-wide text-ink-light/40 dark:text-ink-dark/40">
-              Or
-            </span>
-            <div className="h-px flex-1 bg-ink-light/10 dark:bg-ink-dark/10" />
-          </div>
-        </>
       )}
 
       <form
@@ -247,10 +222,41 @@ export default function Login() {
         </button>
       </form>
 
+      {/* Microsoft SSO - intentionally placed below normal login */}
       {ssoEnabled && (
-        <div className="mt-4 text-center text-xs text-ink-light/50 dark:text-ink-dark/50">
-          Use your company Microsoft 365 account
-        </div>
+        <>
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-ink-light/10 dark:bg-ink-dark/10" />
+
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-light/40 dark:text-ink-dark/40">
+              Or
+            </span>
+
+            <div className="h-px flex-1 bg-ink-light/10 dark:bg-ink-dark/10" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleMicrosoftSignIn}
+            disabled={isSubmitting}
+            className="flex w-full items-center justify-center gap-3 rounded-md border border-ink-light/15 bg-white px-4 py-2.5 text-sm font-medium text-ink-light shadow-sm transition hover:bg-ink-light/5 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ink-dark/15 dark:bg-ink-dark/5 dark:text-ink-dark dark:hover:bg-ink-dark/10"
+          >
+            <span className="flex h-5 w-5 items-center justify-center">
+              <span className="grid h-4 w-4 grid-cols-2 grid-rows-2 gap-[1px]">
+                <span className="bg-[#f25022]" />
+                <span className="bg-[#7fba00]" />
+                <span className="bg-[#00a4ef]" />
+                <span className="bg-[#ffb900]" />
+              </span>
+            </span>
+
+            <span>Sign in with Microsoft</span>
+          </button>
+
+          <div className="mt-3 text-center text-xs text-ink-light/50 dark:text-ink-dark/50">
+            Use your company Microsoft 365 account
+          </div>
+        </>
       )}
     </AuthLayout>
   );
