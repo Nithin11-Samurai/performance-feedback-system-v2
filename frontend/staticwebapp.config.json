@@ -1,5 +1,8 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html"
+  },
+  "globalHeaders": {
+    "Cross-Origin-Opener-Policy": "unsafe-none"
   }
 }
