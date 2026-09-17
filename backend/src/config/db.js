@@ -26,8 +26,7 @@ const pool = new Pool({
   // connecting via a connection string. Local/direct host connections
   // don't need it. `rejectUnauthorized: false` is standard for Supabase's
   // self-signed-style pooler certs.
-  ssl: config.db.connectionString ? { rejectUnauthorized: false } : false,
-  max: 20, // max simultaneous clients
+ssl: { rejectUnauthorized: false },  max: 20, // max simultaneous clients
   // Item 4: lowered from 30s. Managed poolers (Supabase's pgbouncer-style
   // pooler especially) can silently drop idle connections from their side
   // well before our own idleTimeoutMillis would recycle them, leaving a
@@ -38,6 +37,18 @@ const pool = new Pool({
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 5000,
   keepAlive: true,
+});
+
+// One-time, unambiguous confirmation of what this process actually loaded
+// at boot — printed once, here, rather than debugging blind via error
+// messages that only hint at the cause. If usingConnectionString is false
+// while you expect DATABASE_URL to be set, the .env change hasn't been
+// picked up yet (most commonly: the process wasn't restarted after
+// editing .env — env vars are only read once, at startup).
+logger.info('Database pool configured', {
+  usingConnectionString: Boolean(config.db.connectionString),
+sslEnabled: true,
+  host: config.db.connectionString ? '(from DATABASE_URL)' : config.db.host,
 });
 
 pool.on('error', (err) => {

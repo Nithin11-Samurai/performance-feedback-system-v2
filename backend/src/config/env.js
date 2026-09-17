@@ -70,6 +70,10 @@ module.exports = {
     senderEmail: process.env.MS_GRAPH_SENDER_EMAIL,
     fromName: process.env.SMTP_FROM_NAME || 'PinkSamurais',
   },
+    entra: {
+    tenantId: process.env.ENTRA_TENANT_ID,
+    clientId: process.env.ENTRA_CLIENT_ID,
+  },
 
   uploads: {
     dir: process.env.UPLOAD_DIR || 'uploads',

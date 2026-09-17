@@ -115,7 +115,29 @@ api.interceptors.response.use(
       return api(originalRequest);
     }
 
-    if (error.response?.status !== 401 || originalRequest._retry || originalRequest.url?.includes('/auth/refresh')) {
+    // Login-type endpoints return 401 for their OWN reason (wrong
+    // password, Microsoft account not registered, etc.) — that is NOT
+    // "your session expired," so none of them should trigger the
+    // refresh-or-redirect logic below. Previously only /auth/refresh was
+    // excluded, so a failed /auth/microsoft or /auth/login attempt fell
+    // through to the "no refresh token → hard reload to /login" branch
+    // below, wiping the page (and any in-flight error state) before the
+    // caller's own catch block ever saw the rejection — which is exactly
+    // why a failed Microsoft sign-in silently bounced back to the login
+    // page with no error message ever shown.
+    const PUBLIC_AUTH_PATHS = [
+      '/auth/login',
+      '/auth/microsoft',
+      '/auth/register',
+      '/auth/refresh',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/forgot-password-otp',
+      '/auth/verify-reset-otp',
+      '/auth/reset-password-otp',
+    ];
+    const isPublicAuthEndpoint = PUBLIC_AUTH_PATHS.some((path) => originalRequest?.url?.includes(path));
+    if (error.response?.status !== 401 || originalRequest._retry || isPublicAuthEndpoint) {
       return Promise.reject(error);
     }
 

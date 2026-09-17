@@ -1,17 +1,14 @@
-/**
- * Auth routes.
- *
- * NOTE on /register: in an enterprise HR tool, employees don't self-sign-up
- * — accounts are provisioned by Admin/HR. So this route requires an
- * authenticated Admin. The very first Admin account is created by the
- * `npm run seed` script instead (see src/config/seed.js).
- */
 const express = require('express');
 const router = express.Router();
 
 const authController = require('../controllers/authController');
-const { authenticate, authorize } = require('../middleware/auth');
+const {
+  authenticate,
+  authorize,
+} = require('../middleware/auth');
+
 const validate = require('../middleware/validate');
+
 const {
   registerValidator,
   loginValidator,
@@ -23,7 +20,8 @@ const {
   verifyResetOtpValidator,
   resetPasswordOtpValidator,
 } = require('../validators/authValidators');
-const { ROLES, ADMIN_TIER_ROLES } = require('../config/constants');
+
+const { ADMIN_TIER_ROLES } = require('../config/constants');
 
 // Admin/HR only: provision a new employee/manager/admin account.
 router.post(
@@ -35,10 +33,43 @@ router.post(
   authController.register
 );
 
-router.post('/login', loginValidator, validate, authController.login);
-router.post('/refresh', refreshValidator, validate, authController.refresh);
-router.post('/logout', authenticate, authController.logout);
-router.get('/me', authenticate, authController.me);
+// Email/password login
+router.post(
+  '/login',
+  loginValidator,
+  validate,
+  authController.login
+);
+
+// Microsoft SSO login
+router.post(
+  '/microsoft',
+  authController.loginWithMicrosoft
+);
+
+// Refresh JWT
+router.post(
+  '/refresh',
+  refreshValidator,
+  validate,
+  authController.refresh
+);
+
+// Logout
+router.post(
+  '/logout',
+  authenticate,
+  authController.logout
+);
+
+// Current user
+router.get(
+  '/me',
+  authenticate,
+  authController.me
+);
+
+// Change password
 router.post(
   '/change-password',
   authenticate,
@@ -47,12 +78,42 @@ router.post(
   authController.changePassword
 );
 
-router.post('/forgot-password', forgotPasswordValidator, validate, authController.forgotPassword);
-router.post('/reset-password', resetPasswordValidator, validate, authController.resetPassword);
+// Forgot password
+router.post(
+  '/forgot-password',
+  forgotPasswordValidator,
+  validate,
+  authController.forgotPassword
+);
 
-// Item 5: OTP-based alternative
-router.post('/forgot-password-otp', forgotPasswordOtpValidator, validate, authController.forgotPasswordOtp);
-router.post('/verify-reset-otp', verifyResetOtpValidator, validate, authController.verifyResetOtp);
-router.post('/reset-password-otp', resetPasswordOtpValidator, validate, authController.resetPasswordOtp);
+// Reset password
+router.post(
+  '/reset-password',
+  resetPasswordValidator,
+  validate,
+  authController.resetPassword
+);
+
+// OTP password reset
+router.post(
+  '/forgot-password-otp',
+  forgotPasswordOtpValidator,
+  validate,
+  authController.forgotPasswordOtp
+);
+
+router.post(
+  '/verify-reset-otp',
+  verifyResetOtpValidator,
+  validate,
+  authController.verifyResetOtp
+);
+
+router.post(
+  '/reset-password-otp',
+  resetPasswordOtpValidator,
+  validate,
+  authController.resetPasswordOtp
+);
 
 module.exports = router;
