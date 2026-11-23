@@ -5,6 +5,16 @@ export async function listSections() {
   return data.data.sections;
 }
 
+// The signed-in user's own overrides, as { [sectionKey]: allowed }.
+export async function listMyOverrides() {
+  const { data } = await api.get('/permissions/me');
+  const map = {};
+  data.data.overrides.forEach((o) => {
+    map[o.section_key] = !!o.allowed;
+  });
+  return map;
+}
+
 export async function listForUser(userId) {
   const { data } = await api.get(`/permissions/users/${userId}`);
   return data.data.overrides;

@@ -730,6 +730,9 @@ bg-danger/5">
 
 // --- Tab: Skills -----------------------------------------------------------
 
+const SKILL_STATUS_LABEL = { trained: 'Trained', in_training: 'In training', not_trained: 'Not trained' };
+const SKILL_STATUS_TONE = { trained: 'success', in_training: 'warning', not_trained: 'neutral' };
+
 function SkillsTab({ employeeId }) {
   const [skills, setSkills] = useState(null);
 
@@ -748,7 +751,12 @@ function SkillsTab({ employeeId }) {
               <span>
                 {s.skill_name} <span className="text-xs text-ink-light/40">({s.category})</span>
               </span>
-              <Badge tone="primary">{s.proficiency}</Badge>
+              <span className="flex items-center gap-2">
+                <Badge tone={SKILL_STATUS_TONE[s.training_status || 'trained']}>
+                  {SKILL_STATUS_LABEL[s.training_status || 'trained']}
+                </Badge>
+                {s.training_status !== 'not_trained' && <Badge tone="primary">{s.proficiency}</Badge>}
+              </span>
             </li>
           ))}
         </ul>
@@ -1124,7 +1132,7 @@ function PermissionsTab({ employee }) {
       <p className="mb-4 text-xs text-ink-light/50 dark:text-ink-dark/50">
         {isAdminTierEmployee
           ? `${employee.first_name} already has full access as ${roleLabel(employee.role)} — overrides below would only matter if their role changes later.`
-          : `Grant ${employee.first_name} access to specific sections beyond what their role (${roleLabel(employee.role)}) normally allows.`}
+          : `Grant or block ${employee.first_name}'s access to specific sections. This overrides both their role (${roleLabel(employee.role)}) and the Feature Visibility toggles in Settings.`}
       </p>
 
       {sections === null || overrides === null ? (
@@ -1146,13 +1154,22 @@ function PermissionsTab({ employee }) {
                       </button>
                     </>
                   ) : (
-                    <button
-                      disabled={isBusy || isAdminTierEmployee}
-                      onClick={() => handleToggle(s.key, true)}
-                      className="btn-secondary text-xs disabled:opacity-40"
-                    >
-                      Grant access
-                    </button>
+                    <>
+                      <button
+                        disabled={isBusy || isAdminTierEmployee}
+                        onClick={() => handleToggle(s.key, true)}
+                        className="btn-secondary text-xs disabled:opacity-40"
+                      >
+                        Grant access
+                      </button>
+                      <button
+                        disabled={isBusy || isAdminTierEmployee}
+                        onClick={() => handleToggle(s.key, false)}
+                        className="btn-secondary text-xs disabled:opacity-40"
+                      >
+                        Block access
+                      </button>
+                    </>
                   )}
                 </div>
               </li>

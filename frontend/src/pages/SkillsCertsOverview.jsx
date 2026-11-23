@@ -89,7 +89,7 @@ function SkillsOverviewPanel() {
       {stats && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatTile icon={Sparkles} label="Distinct skills tracked" value={stats.uniqueSkills} />
-          <StatTile icon={Users2} label="Total skill entries" value={stats.totalHoldings} />
+          <StatTile icon={Users2} label="Trained skill entries" value={stats.totalHoldings} />
           <StatTile icon={TrendingUp} label="Most common skill" value={stats.topSkill.skillName} />
         </div>
       )}
@@ -136,7 +136,7 @@ function SkillsOverviewPanel() {
                     <p className="data-mono text-xl font-semibold leading-5 text-primary-700 dark:text-primary-300">
                       {s.total}
                     </p>
-                    <p className="text-[11px] text-ink-light/45 dark:text-ink-dark/45">employee{s.total === 1 ? '' : 's'}</p>
+                    <p className="text-[11px] text-ink-light/45 dark:text-ink-dark/45">trained</p>
                   </div>
                 </div>
 
@@ -161,6 +161,13 @@ function SkillsOverviewPanel() {
                     </span>
                   ))}
                 </div>
+
+                {(s.inTraining > 0 || s.notTrained > 0) && (
+                  <p className="text-xs text-ink-light/55 dark:text-ink-dark/55">
+                    In training: <span className="font-medium">{s.inTraining}</span> · Not trained:{' '}
+                    <span className="font-medium">{s.notTrained}</span>
+                  </p>
+                )}
 
                 {/* Bar chart, relative to the most-held skill, gives visual sense of scale across the whole list */}
                 <div className="h-1 overflow-hidden rounded-full bg-primary-50/60 dark:bg-primary-900/30">
@@ -221,6 +228,7 @@ function SkillEmployeesDrilldown({ skill, onBack }) {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Job Title</th>
                 <th className="py-2 pr-3">Department</th>
+                <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Proficiency</th>
                 <th className="py-2 pr-3">Years</th>
               </tr>
@@ -231,8 +239,9 @@ function SkillEmployeesDrilldown({ skill, onBack }) {
                   <td className="py-2 pr-3">{e.first_name} {e.last_name}</td>
                   <td className="py-2 pr-3">{e.job_title || 'N/A'}</td>
                   <td className="py-2 pr-3">{e.department || 'N/A'}</td>
-                  <td className="py-2 pr-3 capitalize">{e.proficiency}</td>
-                  <td className="py-2 pr-3">{e.years_experience || 0}</td>
+                  <td className="py-2 pr-3">{(e.training_status || 'trained').replace('_', ' ')}</td>
+                  <td className="py-2 pr-3 capitalize">{e.training_status === 'not_trained' ? '-' : e.proficiency}</td>
+                  <td className="py-2 pr-3">{e.training_status === 'not_trained' ? '-' : e.years_experience || 0}</td>
                 </tr>
               ))}
             </tbody>

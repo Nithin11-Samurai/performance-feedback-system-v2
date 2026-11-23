@@ -160,7 +160,14 @@ export default function Team() {
                   {detail.skills.map((s) => (
                     <li key={s.id} className="flex items-center justify-between text-sm">
                       <span>{s.skill_name}</span>
-                      <Badge tone="primary">{s.proficiency}</Badge>
+                      <span className="flex items-center gap-2">
+                        {s.training_status && s.training_status !== 'trained' && (
+                          <Badge tone={s.training_status === 'in_training' ? 'warning' : 'neutral'}>
+                            {s.training_status === 'in_training' ? 'In training' : 'Not trained'}
+                          </Badge>
+                        )}
+                        {s.training_status !== 'not_trained' && <Badge tone="primary">{s.proficiency}</Badge>}
+                      </span>
                     </li>
                   ))}
                 </ul>

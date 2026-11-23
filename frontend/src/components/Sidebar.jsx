@@ -24,12 +24,14 @@ import logo from '../assets/logo-samurai.png';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN], featureKey: 'skills' },
+  // My Skills, Certifications and the overview are shown or hidden by Settings > Feature Visibility
+  // (plus per-person overrides), not by a fixed role list.
+  { to: '/skills', label: 'My Skills', icon: Sparkles, roles: null, featureKey: 'skills' },
   {
     to: '/certifications',
     label: 'Certifications',
     icon: Award,
-    roles: [ROLES.ADMIN, ROLES.GLOBAL_ADMIN],
+    roles: null,
     featureKey: 'certifications',
   },
   { to: '/reviews', label: 'Reviews', icon: ClipboardList, roles: null, featureKey: 'reviews' },
@@ -48,7 +50,7 @@ const NAV_ITEMS = [
     to: '/skills-certs-overview',
     label: 'Skills and Certifications',
     icon: Award,
-    roles: [ROLES.MANAGER, ...ADMIN_TIER_ROLES],
+    roles: null,
     featureKey: 'skills_certs_overview',
   },
   { to: '/activity-log', label: 'Activity Log', icon: ShieldAlert, roles: ADMIN_TIER_ROLES },

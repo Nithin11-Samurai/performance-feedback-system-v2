@@ -102,43 +102,38 @@ function AppShell() {
               }
             />
 
+            {/* My Skills, Certifications and the Skills & Certifications overview are not tied to a
+                role list: who can open them is set in Settings > Feature Visibility (Admin-tier,
+                Managers, Employees) and can be overridden per person on the Permissions page.
+                The API enforces the same rules. */}
+            <Route
+              path="/skills"
+              element={
+                <FeatureGate featureKey="skills">
+                  <Skills />
+                </FeatureGate>
+              }
+            />
+            <Route
+              path="/certifications"
+              element={
+                <FeatureGate featureKey="certifications">
+                  <Certifications />
+                </FeatureGate>
+              }
+            />
+            <Route
+              path="/skills-certs-overview"
+              element={
+                <FeatureGate featureKey="skills_certs_overview">
+                  <SkillsCertsOverview />
+                </FeatureGate>
+              }
+            />
+
             {/* Manager + Admin only */}
             <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ...ADMIN_TIER_ROLES]} />}>
               <Route path="/team" element={<Team />} />
-              <Route
-                path="/skills-certs-overview"
-                element={
-                  <FeatureGate featureKey="skills_certs_overview">
-                    <SkillsCertsOverview />
-                  </FeatureGate>
-                }
-              />
-            </Route>
-
-            {/* Admin + Global Admin only (narrower than the general Admin-tier block below) */}
-            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.GLOBAL_ADMIN]} />}>
-              {/* Skills and Certifications are restricted to just these two roles —
-                  System Admin and HR Manager do NOT see these two, unlike everything
-                  else in the Admin-tier block below. To revert to the broader
-                  Admin-tier group, change allowedRoles here to ADMIN_TIER_ROLES, or
-                  to fully re-open these to everyone, move these 2 lines down into
-                  the open block above and set their Sidebar.jsx roles back to null. */}
-              <Route
-                path="/skills"
-                element={
-                  <FeatureGate featureKey="skills">
-                    <Skills />
-                  </FeatureGate>
-                }
-              />
-              <Route
-                path="/certifications"
-                element={
-                  <FeatureGate featureKey="certifications">
-                    <Certifications />
-                  </FeatureGate>
-                }
-              />
             </Route>
 
             {/* Admin only */}

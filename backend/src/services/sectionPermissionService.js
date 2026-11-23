@@ -12,6 +12,7 @@ const userModel = require('../models/userModel');
 const AppError = require('../utils/AppError');
 const auditLog = require('../utils/auditLog');
 const { isAdminTier, ROLES } = require('../config/constants');
+const featureAccessService = require('./featureAccessService');
 
 const SECTIONS = [
   { key: 'analytics', label: 'Analytics' },
@@ -19,6 +20,10 @@ const SECTIONS = [
   // Certifications visibility across the team is something a manager
   // reasonably needs day-to-day, not just an occasional exception.
   { key: 'skills_certs_overview', label: 'Skills and Certifications Overview', defaultRoles: [ROLES.MANAGER] },
+  // My Skills and Certifications follow Settings > Feature Visibility for
+  // everyone, and can be granted or blocked for one person here.
+  { key: 'skills', label: 'My Skills' },
+  { key: 'certifications', label: 'Certifications' },
   { key: 'activity_log', label: 'Activity Log' },
   { key: 'peer_insights_manage', label: '360° Feedback (manage groups and rounds)' },
   { key: 'settings', label: 'Settings (departments and job titles)' },
@@ -82,6 +87,12 @@ async function removeOverride(requesterUser, targetUserId, sectionKey) {
  *   4. Otherwise, no access.
  */
 async function hasSectionAccess(user, sectionKey) {
+  // Skills/Certifications features are decided by the Settings toggles plus
+  // per-person overrides (see featureAccessService), not by role defaults.
+  if (featureAccessService.FLAG_BACKED_KEYS.includes(sectionKey)) {
+    return featureAccessService.hasFeatureAccess(user, sectionKey);
+  }
+
   const override = await sectionPermissionModel.findOverride(user.id, sectionKey);
   if (override) return !!override.allowed;
 
@@ -93,9 +104,15 @@ async function hasSectionAccess(user, sectionKey) {
   return false;
 }
 
+/** The signed-in user's own overrides, so the frontend can honour them in menus and pages. */
+async function listMine(requesterUser) {
+  return sectionPermissionModel.listForUser(requesterUser.id);
+}
+
 module.exports = {
   listSections,
   listForUser,
+  listMine,
   setOverride,
   removeOverride,
   hasSectionAccess,

@@ -10,13 +10,14 @@ async function getByKey(key) {
   return result.rows[0] || null;
 }
 
-async function upsert(key, { visibleToAdminTier, visibleToEmployees }, updatedBy) {
+async function upsert(key, { visibleToAdminTier, visibleToManagers, visibleToEmployees }, updatedBy) {
   const result = await query(
     `UPDATE feature_flags
-     SET visible_to_admin_tier = $2, visible_to_employees = $3, updated_by = $4, updated_at = NOW()
+     SET visible_to_admin_tier = $2, visible_to_managers = $3, visible_to_employees = $4,
+         updated_by = $5, updated_at = NOW()
      WHERE key = $1
      RETURNING *`,
-    [key, visibleToAdminTier, visibleToEmployees, updatedBy]
+    [key, visibleToAdminTier, visibleToManagers, visibleToEmployees, updatedBy]
   );
   return result.rows[0] || null;
 }

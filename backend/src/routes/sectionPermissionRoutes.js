@@ -7,7 +7,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { ADMIN_TIER_ROLES } = require('../config/constants');
 
-router.use(authenticate, authorize(...ADMIN_TIER_ROLES));
+router.use(authenticate);
+
+// Everyone can read their OWN overrides; everything below is Admin-tier only.
+router.get('/me', sectionPermissionController.listMine);
+
+router.use(authorize(...ADMIN_TIER_ROLES));
 
 router.get('/sections', sectionPermissionController.listSections);
 router.get('/users/:userId', sectionPermissionController.listForUser);

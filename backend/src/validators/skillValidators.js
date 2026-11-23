@@ -1,5 +1,5 @@
 const { body, param } = require('express-validator');
-const { SKILL_CATEGORIES, PROFICIENCY_LEVELS } = require('../config/constants');
+const { SKILL_CATEGORIES, PROFICIENCY_LEVELS, TRAINING_STATUS } = require('../config/constants');
 
 const userIdParamValidator = [param('userId').isUUID().withMessage('userId must be a valid UUID')];
 
@@ -10,10 +10,26 @@ const skillIdParamValidator = [
 
 const upsertSkillValidator = [
   ...userIdParamValidator,
-  body('category')
-    .isIn(Object.values(SKILL_CATEGORIES))
-    .withMessage(`category must be one of: ${Object.values(SKILL_CATEGORIES).join(', ')}`),
-  body('skillName').trim().notEmpty().withMessage('skillName is required'),
+  // A skill picked from the catalog is identified by catalogId; a skill the
+  // person types in themselves needs a category and a name instead.
+  body('catalogId').optional({ nullable: true }).isUUID().withMessage('catalogId must be a valid UUID'),
+  body('category').custom((value, { req }) => {
+    if (req.body.catalogId) return true;
+    if (!Object.values(SKILL_CATEGORIES).includes(value)) {
+      throw new Error(`category must be one of: ${Object.values(SKILL_CATEGORIES).join(', ')}`);
+    }
+    return true;
+  }),
+  body('skillName').custom((value, { req }) => {
+    if (req.body.catalogId) return true;
+    if (!value || !String(value).trim()) throw new Error('skillName is required');
+    if (String(value).trim().length > 150) throw new Error('skillName must be 150 characters or fewer');
+    return true;
+  }),
+  body('trainingStatus')
+    .optional()
+    .isIn(Object.values(TRAINING_STATUS))
+    .withMessage(`trainingStatus must be one of: ${Object.values(TRAINING_STATUS).join(', ')}`),
   body('proficiency')
     .optional()
     .isIn(Object.values(PROFICIENCY_LEVELS))

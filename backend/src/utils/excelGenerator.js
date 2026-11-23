@@ -55,6 +55,7 @@ function buildEmployeeWorkbook(report) {
   skillsSheet.columns = [
     { header: 'Category', key: 'category', width: 15 },
     { header: 'Skill', key: 'skill', width: 30 },
+    { header: 'Status', key: 'status', width: 14 },
     { header: 'Proficiency', key: 'proficiency', width: 15 },
     { header: 'Years Experience', key: 'years', width: 18 },
     { header: 'Notes', key: 'notes', width: 40 },
@@ -64,7 +65,8 @@ function buildEmployeeWorkbook(report) {
     skillsSheet.addRow({
       category: s.category,
       skill: s.skill_name,
-      proficiency: s.proficiency,
+      status: (s.training_status || 'trained').replace('_', ' '),
+      proficiency: s.training_status === 'not_trained' ? '' : s.proficiency,
       years: s.years_experience,
       notes: s.notes || '',
     })
@@ -281,7 +283,9 @@ function buildSkillsOverviewWorkbook(skills) {
   sheet.columns = [
     { header: 'Category', key: 'category', width: 16 },
     { header: 'Skill', key: 'skillName', width: 28 },
-    { header: 'Total Employees', key: 'total', width: 16 },
+    { header: 'Trained', key: 'total', width: 12 },
+    { header: 'In Training', key: 'inTraining', width: 13 },
+    { header: 'Not Trained', key: 'notTrained', width: 13 },
     { header: 'Beginner', key: 'beginner', width: 12 },
     { header: 'Intermediate', key: 'intermediate', width: 14 },
     { header: 'Advanced', key: 'advanced', width: 12 },
@@ -293,6 +297,8 @@ function buildSkillsOverviewWorkbook(skills) {
       category: s.category,
       skillName: s.skillName,
       total: s.total,
+      inTraining: s.inTraining || 0,
+      notTrained: s.notTrained || 0,
       beginner: s.byProficiency.beginner,
       intermediate: s.byProficiency.intermediate,
       advanced: s.byProficiency.advanced,
@@ -315,6 +321,7 @@ function buildSkillEmployeesWorkbook(skillName, employees) {
     { header: 'Name', key: 'name', width: 25 },
     { header: 'Job Title', key: 'jobTitle', width: 25 },
     { header: 'Department', key: 'department', width: 20 },
+    { header: 'Status', key: 'status', width: 14 },
     { header: 'Proficiency', key: 'proficiency', width: 14 },
     { header: 'Years Experience', key: 'years', width: 16 },
   ];
@@ -324,7 +331,8 @@ function buildSkillEmployeesWorkbook(skillName, employees) {
       name: `${e.first_name} ${e.last_name}`,
       jobTitle: e.job_title || 'N/A',
       department: e.department || 'N/A',
-      proficiency: e.proficiency,
+      status: (e.training_status || 'trained').replace('_', ' '),
+      proficiency: e.training_status === 'not_trained' ? '' : e.proficiency,
       years: e.years_experience || 0,
     })
   );

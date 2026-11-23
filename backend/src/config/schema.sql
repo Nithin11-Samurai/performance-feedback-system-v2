@@ -554,8 +554,8 @@ CREATE TABLE IF NOT EXISTS feature_flags (
 
 INSERT INTO feature_flags (key, label, visible_to_admin_tier, visible_to_employees)
 VALUES
-  ('skills', 'My Skills', true, false),
-  ('certifications', 'Certifications', true, false),
+  ('skills', 'My Skills', true, true),
+  ('certifications', 'Certifications', true, true),
   ('reviews', 'Reviews', true, false),
   ('review_cycles', 'Review Cycles', true, false),
   ('analytics', 'Analytics', true, false),
@@ -618,3 +618,87 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS team_lead_id UUID REFERENCES users(id
 CREATE INDEX IF NOT EXISTS idx_users_mentor_id ON users(mentor_id);
 CREATE INDEX IF NOT EXISTS idx_users_team_lead_id ON users(team_lead_id);
 
+
+-- ============================================================================
+-- SKILLS CATALOG, TRAINING STATUS, MANAGER VISIBILITY (step 1)
+-- Everything below is additive/idempotent: safe to run on the live database
+-- while the previous version of the app is still running.
+-- ============================================================================
+
+-- Admin-managed list of skills employees pick from. Rows are never hard
+-- deleted (is_active = false hides them from the picker), so employees'
+-- existing skill records stay valid and a re-run of this file does not
+-- re-seed a skill an admin has removed.
+CREATE TABLE IF NOT EXISTS skill_catalog (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name        VARCHAR(150) NOT NULL,
+    category    VARCHAR(30)  NOT NULL DEFAULT 'other'
+                    CHECK (category IN ('salesforce', 'conga', 'other')),
+    is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
+    sort_order  INTEGER      NOT NULL DEFAULT 0,
+    created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_skill_catalog_name ON skill_catalog (LOWER(name));
+
+INSERT INTO skill_catalog (name, category, sort_order)
+SELECT v.name, v.category, v.sort_order
+FROM (VALUES
+    ('Conga CPQ Salesforce',       'conga',      1),
+    ('Conga CLM Salesforce',       'conga',      2),
+    ('Conga Composer Salesforce',  'conga',      3),
+    ('Conga Sign Salesforce',      'conga',      4),
+    ('Conga CPQ Platform',         'conga',      5),
+    ('Conga CLM Platform',         'conga',      6),
+    ('Conga Composer Platform',    'conga',      7),
+    ('Conga Sign Platform',        'conga',      8),
+    ('Conga XAE',                  'conga',      9),
+    ('Salesforce Development',     'salesforce', 10),
+    ('Integrations',               'salesforce', 11),
+    ('Platform Development',       'salesforce', 12),
+    ('Agentforce',                 'salesforce', 13),
+    ('Salesforce CPQ',             'salesforce', 14),
+    ('Salesforce RCA',             'salesforce', 15),
+    ('Claude',                     'other',      16),
+    ('QA Manual',                  'other',      17),
+    ('QA Automation',              'other',      18),
+    ('Deployments',                'other',      19),
+    ('Project Management',         'other',      20),
+    ('PROS smart CPQ',             'other',      21),
+    ('PROS Price Management',      'other',      22),
+    ('PROS Price Optimization',    'other',      23)
+) AS v(name, category, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM skill_catalog c WHERE LOWER(c.name) = LOWER(v.name));
+
+-- Training status sits next to the existing proficiency/years/notes.
+-- Existing rows become 'trained' (they were self-reported skills with a
+-- proficiency level), which keeps today's numbers unchanged.
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS catalog_id UUID REFERENCES skill_catalog(id) ON DELETE SET NULL;
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS training_status VARCHAR(20) NOT NULL DEFAULT 'trained'
+    CHECK (training_status IN ('not_trained', 'in_training', 'trained'));
+CREATE INDEX IF NOT EXISTS idx_skills_catalog_id ON skills(catalog_id);
+CREATE INDEX IF NOT EXISTS idx_skills_training_status ON skills(training_status);
+
+-- Link existing free-text skills that exactly match a catalog name.
+-- (Only sets catalog_id; no name/category is rewritten, so this cannot
+-- collide with the unique (user, category, name) constraint.)
+UPDATE skills s
+SET catalog_id = c.id
+FROM skill_catalog c
+WHERE s.catalog_id IS NULL AND LOWER(s.skill_name) = LOWER(c.name);
+
+-- Managers get their own visibility toggle (previously they were counted
+-- with "Employees"). First run copies each feature's current Employees
+-- value, except that the three Skills & Certifications features are turned
+-- ON for managers. Later runs never overwrite a value an admin has set.
+ALTER TABLE feature_flags ADD COLUMN IF NOT EXISTS visible_to_managers BOOLEAN;
+UPDATE feature_flags
+SET visible_to_managers = CASE
+        WHEN key IN ('skills', 'certifications', 'skills_certs_overview') THEN TRUE
+        ELSE visible_to_employees
+    END
+WHERE visible_to_managers IS NULL;
+ALTER TABLE feature_flags ALTER COLUMN visible_to_managers SET DEFAULT FALSE;
+ALTER TABLE feature_flags ALTER COLUMN visible_to_managers SET NOT NULL;

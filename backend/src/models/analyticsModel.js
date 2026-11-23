@@ -45,11 +45,17 @@ async function getTopPerformers(limit = 5) {
  */
 async function getSkillGapAnalysis() {
   const result = await query(
-    `SELECT category, skill_name, proficiency, COUNT(*)::int AS employee_count
-     FROM skills
-     GROUP BY category, skill_name, proficiency
-     ORDER BY category, skill_name,
-       CASE proficiency
+    // Only people who are trained count as "having" a skill; someone who
+    // is in training or not trained must not show up as a beginner.
+    // Name/category come from the catalog when the skill is linked to it.
+    `SELECT COALESCE(c.category, s.category) AS category,
+            COALESCE(c.name, s.skill_name) AS skill_name,
+            s.proficiency, COUNT(*)::int AS employee_count
+     FROM skills s LEFT JOIN skill_catalog c ON c.id = s.catalog_id
+     WHERE s.training_status = 'trained'
+     GROUP BY COALESCE(c.category, s.category), COALESCE(c.name, s.skill_name), s.proficiency
+     ORDER BY 1, 2,
+       CASE s.proficiency
          WHEN 'beginner' THEN 1
          WHEN 'intermediate' THEN 2
          WHEN 'advanced' THEN 3
@@ -109,10 +115,12 @@ async function getCycleTrends() {
  */
 async function getSkillsOverview() {
   const result = await query(
-    `SELECT category, skill_name, proficiency, COUNT(*)::int AS employee_count
-     FROM skills
-     GROUP BY category, skill_name, proficiency
-     ORDER BY category, skill_name`
+    `SELECT COALESCE(c.category, s.category) AS category,
+            COALESCE(c.name, s.skill_name) AS skill_name,
+            s.training_status, s.proficiency, COUNT(*)::int AS employee_count
+     FROM skills s LEFT JOIN skill_catalog c ON c.id = s.catalog_id
+     GROUP BY COALESCE(c.category, s.category), COALESCE(c.name, s.skill_name), s.training_status, s.proficiency
+     ORDER BY 1, 2`
   );
   return result.rows;
 }
@@ -120,10 +128,13 @@ async function getSkillsOverview() {
 /** Every employee who has a specific skill, with their proficiency — for drill-down. */
 async function getEmployeesForSkill(category, skillName) {
   const result = await query(
-    `SELECT u.id, u.first_name, u.last_name, u.job_title, u.department, s.proficiency, s.years_experience
-     FROM skills s JOIN users u ON u.id = s.user_id
-     WHERE s.category = $1 AND s.skill_name = $2
-     ORDER BY u.first_name`,
+    `SELECT u.id, u.first_name, u.last_name, u.job_title, u.department,
+            s.training_status, s.proficiency, s.years_experience
+     FROM skills s
+     JOIN users u ON u.id = s.user_id
+     LEFT JOIN skill_catalog c ON c.id = s.catalog_id
+     WHERE COALESCE(c.category, s.category) = $1 AND COALESCE(c.name, s.skill_name) = $2
+     ORDER BY CASE s.training_status WHEN 'trained' THEN 1 WHEN 'in_training' THEN 2 ELSE 3 END, u.first_name`,
     [category, skillName]
   );
   return result.rows;

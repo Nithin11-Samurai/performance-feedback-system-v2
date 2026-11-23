@@ -69,7 +69,11 @@ function generateEmployeePdf(res, report) {
         .text(`${s.skill_name} `, { continued: true })
         .font('Helvetica')
         .fillColor(COLORS.muted)
-        .text(`(${s.category}) — ${s.proficiency}, ${s.years_experience} yrs`);
+        .text(
+          s.training_status === 'not_trained'
+            ? `(${s.category}) — not trained`
+            : `(${s.category}) — ${s.training_status === 'in_training' ? 'in training, ' : ''}${s.proficiency}, ${s.years_experience} yrs`
+        );
     });
   }
 

@@ -5,6 +5,12 @@ const listSections = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { sections: sectionPermissionService.listSections() } });
 });
 
+// GET /api/permissions/me  (any signed-in user: their own overrides only)
+const listMine = asyncHandler(async (req, res) => {
+  const overrides = await sectionPermissionService.listMine(req.user);
+  res.json({ success: true, data: { overrides } });
+});
+
 const listForUser = asyncHandler(async (req, res) => {
   const overrides = await sectionPermissionService.listForUser(req.user, req.params.userId);
   res.json({ success: true, data: { overrides } });
@@ -21,4 +27,4 @@ const removeOverride = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Permission override removed' });
 });
 
-module.exports = { listSections, listForUser, setOverride, removeOverride };
+module.exports = { listSections, listMine, listForUser, setOverride, removeOverride };

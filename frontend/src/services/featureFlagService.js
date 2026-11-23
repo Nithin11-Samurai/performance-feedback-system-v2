@@ -5,7 +5,7 @@ export async function listFeatureFlags() {
   return data.data.flags;
 }
 
-export async function updateFeatureFlag(key, { visibleToAdminTier, visibleToEmployees }) {
-  const { data } = await api.put(`/feature-flags/${key}`, { visibleToAdminTier, visibleToEmployees });
+export async function updateFeatureFlag(key, { visibleToAdminTier, visibleToManagers, visibleToEmployees }) {
+  const { data } = await api.put(`/feature-flags/${key}`, { visibleToAdminTier, visibleToManagers, visibleToEmployees });
   return data.data.flag;
 }
