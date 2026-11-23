@@ -65,7 +65,7 @@ async function createCatalogSkill(requesterUser, { name, category }) {
   return created;
 }
 
-async function updateCatalogSkill(requesterUser, id, { name, category, isActive }) {
+async function updateCatalogSkill(requesterUser, id, { name, category, isActive, targetTrained }) {
   assertAdmin(requesterUser);
   const current = await skillCatalogModel.findById(id);
   if (!current) throw AppError.notFound('Skill not found');
@@ -78,15 +78,26 @@ async function updateCatalogSkill(requesterUser, id, { name, category, isActive 
     if (clash && clash.id !== id) throw AppError.conflict('Another skill already has this name');
   }
 
-  const updated = await skillCatalogModel.update(id, { name: nextName, category, isActive });
+  let nextTarget;
+  if (targetTrained !== undefined) {
+    if (targetTrained === null || targetTrained === '') {
+      nextTarget = null;
+    } else if (Number.isInteger(Number(targetTrained)) && Number(targetTrained) >= 0 && Number(targetTrained) <= 100000) {
+      nextTarget = Number(targetTrained);
+    } else {
+      throw AppError.badRequest('Target must be a whole number, 0 or more');
+    }
+  }
+
+  const updated = await skillCatalogModel.update(id, { name: nextName, category, isActive, targetTrained: nextTarget });
 
   if (updated.name !== current.name || updated.category !== current.category) {
     await skillCatalogModel.syncLinkedSkills(id, { name: updated.name, category: updated.category });
   }
 
   await auditLog.record(requesterUser.id, 'UPDATE_CATALOG_SKILL', 'skill_catalog', id, {
-    from: { name: current.name, category: current.category, isActive: current.is_active },
-    to: { name: updated.name, category: updated.category, isActive: updated.is_active },
+    from: { name: current.name, category: current.category, isActive: current.is_active, targetTrained: current.target_trained },
+    to: { name: updated.name, category: updated.category, isActive: updated.is_active, targetTrained: updated.target_trained },
   });
   return updated;
 }

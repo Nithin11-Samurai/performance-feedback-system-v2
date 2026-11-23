@@ -69,6 +69,18 @@ export default function SkillCatalogSettings() {
     }
   }
 
+  // The goal is how many trained people the company wants for this skill.
+  // The dashboard compares the real number against it. Empty = no goal.
+  async function saveTarget(item, raw) {
+    const next = raw === '' ? null : Number(raw);
+    if (next === (item.target_trained ?? null)) return;
+    if (next !== null && (!Number.isInteger(next) || next < 0)) {
+      showToast('The goal must be a whole number, 0 or more.', 'error');
+      return;
+    }
+    await change(item, { targetTrained: next }, next === null ? 'Goal cleared' : 'Goal updated');
+  }
+
   async function saveRename(item) {
     const next = editName.trim();
     if (!next || next === item.name) {
@@ -96,7 +108,8 @@ export default function SkillCatalogSettings() {
       </h3>
       <p className="mb-4 text-sm text-ink-light/55 dark:text-ink-dark/55">
         The skills employees pick from on My Skills. Removing a skill only hides it from the list; anyone who already
-        has it keeps their record.
+        has it keeps their record. The small number next to a skill is an optional goal: how many trained people you
+        want company-wide. The Skills and Certifications dashboard uses it to show where you are ahead or lacking.
       </p>
 
       <form onSubmit={handleAdd} className="mb-5 flex flex-col gap-2 sm:flex-row">
@@ -121,7 +134,7 @@ export default function SkillCatalogSettings() {
       {items === null ? (
         <Skeleton className="h-40 w-full" />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {CATEGORIES.map((cat) => (
             <div key={cat.value}>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-light/50 dark:text-ink-dark/50">
@@ -174,6 +187,23 @@ export default function SkillCatalogSettings() {
                           </>
                         ) : (
                           <>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100000"
+                              step="1"
+                              placeholder="Goal"
+                              title="Goal: how many trained people you want for this skill (optional)"
+                              aria-label={`Goal for ${item.name}`}
+                              key={`${item.id}-${item.target_trained ?? ''}`}
+                              defaultValue={item.target_trained ?? ''}
+                              disabled={busyId === item.id}
+                              onBlur={(e) => saveTarget(item, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') e.currentTarget.blur();
+                              }}
+                              className="w-14 rounded border border-transparent bg-transparent px-1 text-right text-xs text-ink-light/60 hover:border-primary-100 focus:border-primary-300 dark:text-ink-dark/60"
+                            />
                             <select
                               className="rounded border border-transparent bg-transparent text-xs text-ink-light/50 hover:border-primary-100 dark:text-ink-dark/50"
                               value={item.category}

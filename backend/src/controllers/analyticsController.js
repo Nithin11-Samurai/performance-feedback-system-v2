@@ -1,5 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const analyticsService = require('../services/analyticsService');
+const skillsDashboardService = require('../services/skillsDashboardService');
 const {
   buildSkillsOverviewWorkbook,
   buildSkillEmployeesWorkbook,
@@ -77,7 +78,35 @@ const exportCertificationEmployeesExcel = asyncHandler(async (req, res) => {
   res.end();
 });
 
+// GET /api/analytics/skills-dashboard?scope=all|team|person&managerId=&userId=&department=
+const getSkillsDashboard = asyncHandler(async (req, res) => {
+  const dashboard = await skillsDashboardService.getDashboard(req.user, req.query);
+  res.json({ success: true, data: dashboard });
+});
+
+// GET /api/analytics/skills-dashboard/skill?skillKey=...&scope=...  (people for one skill)
+const getDashboardSkillPeople = asyncHandler(async (req, res) => {
+  const result = await skillsDashboardService.getSkillPeople(req.user, req.query);
+  res.json({ success: true, data: result });
+});
+
+// GET /api/analytics/skills-dashboard/people?search=...
+const searchDashboardPeople = asyncHandler(async (req, res) => {
+  const people = await skillsDashboardService.searchPeople(req.query.search);
+  res.json({ success: true, data: { people } });
+});
+
+// GET /api/analytics/skills-dashboard/managers
+const listDashboardManagers = asyncHandler(async (req, res) => {
+  const managers = await skillsDashboardService.listManagers();
+  res.json({ success: true, data: { managers } });
+});
+
 module.exports = {
+  getSkillsDashboard,
+  getDashboardSkillPeople,
+  searchDashboardPeople,
+  listDashboardManagers,
   getOverview,
   getSkillsOverview,
   exportSkillsOverviewExcel,

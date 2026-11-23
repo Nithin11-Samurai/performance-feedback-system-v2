@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import ProfileModal from '../components/ProfileModal';
+import OnboardingBanner from '../components/OnboardingBanner';
+import OnboardingGate from '../components/OnboardingGate';
 import { usePageTitleContext } from '../context/PageTitleContext';
 
 export default function DashboardLayout() {
@@ -22,7 +24,10 @@ export default function DashboardLayout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar title={title} onOpenMenu={() => setMobileNavOpen(true)} onOpenProfile={() => setProfileOpen(true)} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <Outlet />
+          <OnboardingBanner />
+          <OnboardingGate>
+            <Outlet />
+          </OnboardingGate>
         </main>
       </div>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />

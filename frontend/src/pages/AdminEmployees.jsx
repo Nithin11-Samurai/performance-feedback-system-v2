@@ -36,6 +36,7 @@ import { ROLES, roleLabel } from '../utils/roles';
 import * as userService from '../services/userService';
 import * as authService from '../services/authService';
 import * as skillService from '../services/skillService';
+import { SkillsList, CertsList } from '../components/EmployeeSkillsCerts';
 import * as certificationService from '../services/certificationService';
 import * as reviewService from '../services/reviewService';
 import * as catalogService from '../services/catalogService';
@@ -730,9 +731,6 @@ bg-danger/5">
 
 // --- Tab: Skills -----------------------------------------------------------
 
-const SKILL_STATUS_LABEL = { trained: 'Trained', in_training: 'In training', not_trained: 'Not trained' };
-const SKILL_STATUS_TONE = { trained: 'success', in_training: 'warning', not_trained: 'neutral' };
-
 function SkillsTab({ employeeId }) {
   const [skills, setSkills] = useState(null);
 
@@ -744,25 +742,7 @@ function SkillsTab({ employeeId }) {
 
   return (
     <div className="card card-skills">
-      {skills.length ? (
-        <ul className="space-y-2">
-          {skills.map((s) => (
-            <li key={s.id} className="flex items-center justify-between border-b border-primary-50 pb-2 text-sm last:border-0 dark:border-primary-900/50">
-              <span>
-                {s.skill_name} <span className="text-xs text-ink-light/40">({s.category})</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <Badge tone={SKILL_STATUS_TONE[s.training_status || 'trained']}>
-                  {SKILL_STATUS_LABEL[s.training_status || 'trained']}
-                </Badge>
-                {s.training_status !== 'not_trained' && <Badge tone="primary">{s.proficiency}</Badge>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No skills recorded.</p>
-      )}
+      <SkillsList skills={skills} />
     </div>
   );
 }
@@ -780,21 +760,7 @@ function CertificationsTab({ employeeId }) {
 
   return (
     <div className="card card-certs">
-      {certs.length ? (
-        <ul className="space-y-3">
-          {certs.map((c) => (
-            <li key={c.id} className="border-b border-primary-50 pb-3 text-sm last:border-0 dark:border-primary-900/50">
-              <p className="font-medium">{c.name}</p>
-              <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
-                {c.issuing_organization || 'N/A'} · Issued {formatDate(c.issue_date)}
-                {c.expiry_date ? ` · Expires ${formatDate(c.expiry_date)}` : ''}
-              </p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No certifications recorded.</p>
-      )}
+      <CertsList certs={certs} />
     </div>
   );
 }

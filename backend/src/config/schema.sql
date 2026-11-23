@@ -702,3 +702,27 @@ SET visible_to_managers = CASE
 WHERE visible_to_managers IS NULL;
 ALTER TABLE feature_flags ALTER COLUMN visible_to_managers SET DEFAULT FALSE;
 ALTER TABLE feature_flags ALTER COLUMN visible_to_managers SET NOT NULL;
+
+-- ============================================================================
+-- FIRST-LOGIN SETUP (step 2). Additive and idempotent.
+-- Whether someone has finished each step is worked out from their data
+-- (contact details filled in, at least one skill, at least one certification),
+-- so people who already filled things in are never asked again. These two
+-- columns only record the choices that can't be worked out from data.
+-- ============================================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS no_certifications_confirmed_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_dismissed_at TIMESTAMPTZ;
+
+-- Settings > Feature Visibility switch for the setup prompt (also the
+-- kill-switch: turn an audience off and those people are never prompted).
+INSERT INTO feature_flags (key, label, visible_to_admin_tier, visible_to_managers, visible_to_employees)
+VALUES ('onboarding', 'First-login setup', TRUE, TRUE, TRUE)
+ON CONFLICT (key) DO NOTHING;
+
+-- ============================================================================
+-- SKILLS DASHBOARD (step 3). Additive and idempotent.
+-- Optional goal per skill: how many trained people the company wants. Used by
+-- the dashboard to show where we're ahead or lacking. NULL = no target set.
+-- ============================================================================
+ALTER TABLE skill_catalog ADD COLUMN IF NOT EXISTS target_trained INTEGER
+    CHECK (target_trained IS NULL OR target_trained >= 0);

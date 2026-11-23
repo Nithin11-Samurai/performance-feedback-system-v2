@@ -34,6 +34,7 @@ router.patch(
     body('name').optional().trim().notEmpty().isLength({ max: 150 }),
     body('category').optional().isIn(Object.values(SKILL_CATEGORIES)).withMessage('Invalid category'),
     body('isActive').optional().isBoolean(),
+    body('targetTrained').optional({ nullable: true }).isInt({ min: 0, max: 100000 }).withMessage('Target must be a whole number, 0 or more'),
   ],
   validate,
   skillCatalogController.updateCatalogSkill

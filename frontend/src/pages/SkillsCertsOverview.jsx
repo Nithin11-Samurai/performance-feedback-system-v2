@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import * as analyticsService from '../services/analyticsService';
 import Skeleton from '../components/Skeleton';
 import Badge from '../components/Badge';
+import SkillsDashboardPanel from '../components/SkillsDashboardPanel';
 
 const PROFICIENCY_ORDER = ['beginner', 'intermediate', 'advanced', 'expert'];
 const PROFICIENCY_COLORS = { beginner: '#f6c0df', intermediate: '#ed7dbc', advanced: '#ea6bb3', expert: '#e02891' };
@@ -12,11 +13,17 @@ const PROFICIENCY_LABELS = { beginner: 'Beginner', intermediate: 'Intermediate',
 
 export default function SkillsCertsOverview() {
   usePageTitle('Skills and Certifications');
-  const [tab, setTab] = useState('skills');
+  const [tab, setTab] = useState('dashboard');
 
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
+        <button
+          onClick={() => setTab('dashboard')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${tab === 'dashboard' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-100'}`}
+        >
+          Dashboard
+        </button>
         <button
           onClick={() => setTab('skills')}
           className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${tab === 'skills' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-800 dark:bg-primary-900/40 dark:text-primary-100'}`}
@@ -31,7 +38,9 @@ export default function SkillsCertsOverview() {
         </button>
       </div>
 
-      {tab === 'skills' ? <SkillsOverviewPanel /> : <CertificationsOverviewPanel />}
+      {tab === 'dashboard' && <SkillsDashboardPanel />}
+      {tab === 'skills' && <SkillsOverviewPanel />}
+      {tab === 'certifications' && <CertificationsOverviewPanel />}
     </div>
   );
 }

@@ -2,7 +2,15 @@ const featureFlagModel = require('../models/featureFlagModel');
 const AppError = require('../utils/AppError');
 const { isAdminTier } = require('../config/constants');
 
-const VALID_KEYS = ['skills', 'certifications', 'reviews', 'review_cycles', 'analytics', 'skills_certs_overview'];
+const VALID_KEYS = [
+  'skills',
+  'certifications',
+  'reviews',
+  'review_cycles',
+  'analytics',
+  'skills_certs_overview',
+  'onboarding',
+];
 
 /**
  * Any authenticated user can read the flags — the frontend needs them to

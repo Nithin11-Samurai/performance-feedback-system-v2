@@ -6,12 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../utils/roles';
 import * as userService from '../services/userService';
 import * as skillService from '../services/skillService';
+import { SkillsList, CertsList } from '../components/EmployeeSkillsCerts';
 import * as certificationService from '../services/certificationService';
 import * as reviewService from '../services/reviewService';
 import FeedbackList from '../components/FeedbackList';
 import AiSummaryPanel from '../components/AiSummaryPanel';
 import ExportButtons from '../components/ExportButtons';
-import Badge from '../components/Badge';
 
 export default function Team() {
   usePageTitle('My Team');
@@ -155,42 +155,14 @@ export default function Team() {
               <h4 className="mb-3 flex items-center gap-2 font-display text-sm font-semibold">
                 <Sparkles size={15} /> Skills
               </h4>
-              {detail?.skills.length ? (
-                <ul className="space-y-2">
-                  {detail.skills.map((s) => (
-                    <li key={s.id} className="flex items-center justify-between text-sm">
-                      <span>{s.skill_name}</span>
-                      <span className="flex items-center gap-2">
-                        {s.training_status && s.training_status !== 'trained' && (
-                          <Badge tone={s.training_status === 'in_training' ? 'warning' : 'neutral'}>
-                            {s.training_status === 'in_training' ? 'In training' : 'Not trained'}
-                          </Badge>
-                        )}
-                        {s.training_status !== 'not_trained' && <Badge tone="primary">{s.proficiency}</Badge>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No skills recorded.</p>
-              )}
+              {detail ? <SkillsList skills={detail.skills} /> : null}
             </div>
 
             <div className="card card-certs">
               <h4 className="mb-3 flex items-center gap-2 font-display text-sm font-semibold">
                 <Award size={15} /> Certifications
               </h4>
-              {detail?.certs.length ? (
-                <ul className="space-y-2">
-                  {detail.certs.map((c) => (
-                    <li key={c.id} className="text-sm">
-                      {c.name}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No certifications recorded.</p>
-              )}
+              {detail ? <CertsList certs={detail.certs} /> : null}
             </div>
           </div>
 

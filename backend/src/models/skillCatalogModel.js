@@ -34,16 +34,19 @@ async function create({ name, category, createdBy }) {
   return result.rows[0];
 }
 
-async function update(id, { name, category, isActive }) {
+async function update(id, { name, category, isActive, targetTrained }) {
+  // targetTrained: undefined = leave as is, null = clear the target, number = set it.
+  const changeTarget = targetTrained !== undefined;
   const result = await query(
     `UPDATE skill_catalog
      SET name = COALESCE($2, name),
          category = COALESCE($3, category),
          is_active = COALESCE($4, is_active),
+         target_trained = CASE WHEN $5 THEN $6::int ELSE target_trained END,
          updated_at = NOW()
      WHERE id = $1
      RETURNING *`,
-    [id, name ?? null, category ?? null, typeof isActive === 'boolean' ? isActive : null]
+    [id, name ?? null, category ?? null, typeof isActive === 'boolean' ? isActive : null, changeTarget, changeTarget ? targetTrained : null]
   );
   return result.rows[0] || null;
 }
