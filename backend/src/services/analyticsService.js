@@ -26,13 +26,23 @@ async function getSkillsOverview() {
       bySkill.set(key, {
         category: r.category,
         skillName: r.skill_name,
+        // `total` and `byProficiency` count TRAINED employees only, so they
+        // keep meaning "who has this skill"; the other statuses are separate.
         total: 0,
+        inTraining: 0,
+        notTrained: 0,
         byProficiency: { beginner: 0, intermediate: 0, advanced: 0, expert: 0 },
       });
     }
     const entry = bySkill.get(key);
-    entry.total += r.employee_count;
-    entry.byProficiency[r.proficiency] = r.employee_count;
+    if (r.training_status === 'in_training') {
+      entry.inTraining += r.employee_count;
+    } else if (r.training_status === 'not_trained') {
+      entry.notTrained += r.employee_count;
+    } else {
+      entry.total += r.employee_count;
+      entry.byProficiency[r.proficiency] = (entry.byProficiency[r.proficiency] || 0) + r.employee_count;
+    }
   });
 
   return Array.from(bySkill.values()).sort((a, b) => b.total - a.total);

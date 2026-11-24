@@ -2,7 +2,15 @@ const featureFlagModel = require('../models/featureFlagModel');
 const AppError = require('../utils/AppError');
 const { isAdminTier } = require('../config/constants');
 
-const VALID_KEYS = ['skills', 'certifications', 'reviews', 'review_cycles', 'analytics', 'skills_certs_overview'];
+const VALID_KEYS = [
+  'skills',
+  'certifications',
+  'reviews',
+  'review_cycles',
+  'analytics',
+  'skills_certs_overview',
+  'onboarding',
+];
 
 /**
  * Any authenticated user can read the flags — the frontend needs them to
@@ -17,7 +25,7 @@ async function listFlags() {
  * Only Admin-tier roles (Admin, Global Admin, System Admin, HR Manager)
  * can change a flag, per the request.
  */
-async function updateFlag(requesterUser, key, { visibleToAdminTier, visibleToEmployees }) {
+async function updateFlag(requesterUser, key, { visibleToAdminTier, visibleToManagers, visibleToEmployees }) {
   if (!isAdminTier(requesterUser.role)) {
     throw AppError.forbidden('Only Admin-tier roles can change feature visibility');
   }
@@ -28,7 +36,17 @@ async function updateFlag(requesterUser, key, { visibleToAdminTier, visibleToEmp
     throw AppError.badRequest('visibleToAdminTier and visibleToEmployees must both be true/false');
   }
 
-  const updated = await featureFlagModel.upsert(key, { visibleToAdminTier, visibleToEmployees }, requesterUser.id);
+  // Older clients don't send the Managers value; keep whatever is stored.
+  if (typeof visibleToManagers !== 'boolean') {
+    const current = await featureFlagModel.getByKey(key);
+    visibleToManagers = current?.visible_to_managers ?? visibleToEmployees;
+  }
+
+  const updated = await featureFlagModel.upsert(
+    key,
+    { visibleToAdminTier, visibleToManagers, visibleToEmployees },
+    requesterUser.id
+  );
   if (!updated) throw AppError.notFound(`Feature "${key}" not found — has the migration been run?`);
   return updated;
 }

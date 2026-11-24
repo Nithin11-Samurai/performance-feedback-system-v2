@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const certificationController = require('../controllers/certificationController');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireOwnFeature } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { uploadCertificate } = require('../middleware/upload');
 const {
@@ -14,12 +14,19 @@ const {
 
 router.use(authenticate);
 
-router.get('/:userId', userIdParamValidator, validate, certificationController.listCertifications);
+router.get(
+  '/:userId',
+  requireOwnFeature('certifications'),
+  userIdParamValidator,
+  validate,
+  certificationController.listCertifications
+);
 
 // multer (uploadCertificate) must run BEFORE express-validator, since it
 // parses the multipart body into req.body/req.file.
 router.post(
   '/:userId',
+  requireOwnFeature('certifications'),
   uploadCertificate,
   createCertificationValidator,
   validate,
@@ -28,12 +35,19 @@ router.post(
 
 router.patch(
   '/:userId/:certId',
+  requireOwnFeature('certifications'),
   uploadCertificate,
   updateCertificationValidator,
   validate,
   certificationController.updateCertification
 );
 
-router.delete('/:userId/:certId', certIdParamValidator, validate, certificationController.deleteCertification);
+router.delete(
+  '/:userId/:certId',
+  requireOwnFeature('certifications'),
+  certIdParamValidator,
+  validate,
+  certificationController.deleteCertification
+);
 
 module.exports = router;

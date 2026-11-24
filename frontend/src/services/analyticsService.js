@@ -5,6 +5,31 @@ export async function getAnalyticsOverview() {
   return data.data;
 }
 
+// --- Skills & Certifications dashboard ---
+
+const compact = (params = {}) =>
+  Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+
+export async function getSkillsDashboard(params) {
+  const { data } = await api.get('/analytics/skills-dashboard', { params: compact(params) });
+  return data.data;
+}
+
+export async function getDashboardSkillPeople(params) {
+  const { data } = await api.get('/analytics/skills-dashboard/skill', { params: compact(params) });
+  return data.data;
+}
+
+export async function searchDashboardPeople(search) {
+  const { data } = await api.get('/analytics/skills-dashboard/people', { params: { search } });
+  return data.data.people;
+}
+
+export async function listDashboardManagers() {
+  const { data } = await api.get('/analytics/skills-dashboard/managers');
+  return data.data.managers;
+}
+
 // --- Item 7: Skills & Certifications Overview ---
 
 export async function getSkillsOverview() {

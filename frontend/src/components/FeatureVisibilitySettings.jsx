@@ -4,17 +4,15 @@ import * as featureFlagService from '../services/featureFlagService';
 import { useToast } from '../context/ToastContext';
 import { useFeatureFlags } from '../context/FeatureFlagsContext';
 
+// Company-wide views: the Employees toggle can't open these (an employee
+// only gets one through a per-person grant on the Permissions page).
+const MANAGEMENT_ONLY_KEYS = ['skills_certs_overview'];
+
 /**
- * Drop this into Settings.jsx as its own section:
- *
- *   import FeatureVisibilitySettings from '../components/FeatureVisibilitySettings';
- *   ...
- *   <FeatureVisibilitySettings />
- *
- * Replaces the hardcoded Admin-tier-only restriction on My Skills,
- * Certifications, Reviews, Review Cycles, Analytics, and Skills &
- * Certifications Overview with an admin-configurable toggle per feature,
- * per audience.
+ * Settings > Feature Visibility. One row per feature, one toggle per
+ * audience: Admin-tier roles, Managers, and Employees. Per-person
+ * exceptions (grant or block one employee) live on the Permissions page and
+ * override these toggles.
  */
 export default function FeatureVisibilitySettings() {
   const { showToast } = useToast();
@@ -32,6 +30,7 @@ export default function FeatureVisibilitySettings() {
     try {
       const updated = await featureFlagService.updateFeatureFlag(flag.key, {
         visibleToAdminTier: next.visible_to_admin_tier,
+        visibleToManagers: next.visible_to_managers,
         visibleToEmployees: next.visible_to_employees,
       });
       setFlags((prev) => prev.map((f) => (f.key === updated.key ? updated : f)));
@@ -44,8 +43,19 @@ export default function FeatureVisibilitySettings() {
     }
   }
 
-  function ToggleCell({ flag, field, label }) {
-    const on = flag[field];
+  function ToggleCell({ flag, field, label, disabled = false, disabledHint }) {
+    const on = !!flag[field];
+    if (disabled) {
+      return (
+        <span
+          className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-ink-light/30 dark:text-ink-dark/30"
+          title={disabledHint}
+        >
+          <EyeOff size={13} />
+          n/a
+        </span>
+      );
+    }
     return (
       <button
         onClick={() => toggle(flag, field)}
@@ -67,27 +77,42 @@ export default function FeatureVisibilitySettings() {
     <div className="card card-reviews">
       <h3 className="mb-1 font-display text-base font-semibold">Feature Visibility</h3>
       <p className="mb-4 text-sm text-ink-light/55 dark:text-ink-dark/55">
-        Turn these sections on or off for two audiences at once: Admin-tier roles (Admin, Global Admin, System
-        Admin, HR Manager) viewing them for themselves, and everyone else (Employee, Manager).
+        Turn each section on or off for three audiences: Admin-tier roles (Admin, Global Admin, System Admin, HR
+        Manager), Managers, and Employees. To give one person an exception, or take a section away from one person,
+        use the Permissions page; that overrides these toggles.
       </p>
 
       {flags === null ? (
         <div className="skeleton h-40 w-full" />
       ) : (
         <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-1 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-1 text-xs font-medium text-ink-light/50 dark:text-ink-dark/50">
             <span>Feature</span>
-            <span>Admin-tier</span>
-            <span>Employees</span>
+            <span className="w-[88px]">Admin-tier</span>
+            <span className="w-[88px]">Managers</span>
+            <span className="w-[88px]">Employees</span>
           </div>
           {flags.map((flag) => (
             <div
               key={flag.key}
-              className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-lg border border-primary-50 px-3 py-2.5 dark:border-primary-900/50"
+              className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-lg border border-primary-50 px-3 py-2.5 dark:border-primary-900/50"
             >
               <span className="text-sm font-medium">{flag.label}</span>
-              <ToggleCell flag={flag} field="visible_to_admin_tier" label="Self" />
-              <ToggleCell flag={flag} field="visible_to_employees" label="Employees" />
+              <div className="w-[88px]">
+                <ToggleCell flag={flag} field="visible_to_admin_tier" label="Self" />
+              </div>
+              <div className="w-[88px]">
+                <ToggleCell flag={flag} field="visible_to_managers" label="Managers" />
+              </div>
+              <div className="w-[88px]">
+                <ToggleCell
+                  flag={flag}
+                  field="visible_to_employees"
+                  label="Employees"
+                  disabled={MANAGEMENT_ONLY_KEYS.includes(flag.key)}
+                  disabledHint="This is a company-wide view, so employees can't open it. Grant it to one person on the Permissions page if needed."
+                />
+              </div>
             </div>
           ))}
         </div>

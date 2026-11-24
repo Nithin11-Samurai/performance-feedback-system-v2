@@ -36,6 +36,7 @@ import { ROLES, roleLabel } from '../utils/roles';
 import * as userService from '../services/userService';
 import * as authService from '../services/authService';
 import * as skillService from '../services/skillService';
+import { SkillsList, CertsList } from '../components/EmployeeSkillsCerts';
 import * as certificationService from '../services/certificationService';
 import * as reviewService from '../services/reviewService';
 import * as catalogService from '../services/catalogService';
@@ -741,20 +742,7 @@ function SkillsTab({ employeeId }) {
 
   return (
     <div className="card card-skills">
-      {skills.length ? (
-        <ul className="space-y-2">
-          {skills.map((s) => (
-            <li key={s.id} className="flex items-center justify-between border-b border-primary-50 pb-2 text-sm last:border-0 dark:border-primary-900/50">
-              <span>
-                {s.skill_name} <span className="text-xs text-ink-light/40">({s.category})</span>
-              </span>
-              <Badge tone="primary">{s.proficiency}</Badge>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No skills recorded.</p>
-      )}
+      <SkillsList skills={skills} />
     </div>
   );
 }
@@ -772,21 +760,7 @@ function CertificationsTab({ employeeId }) {
 
   return (
     <div className="card card-certs">
-      {certs.length ? (
-        <ul className="space-y-3">
-          {certs.map((c) => (
-            <li key={c.id} className="border-b border-primary-50 pb-3 text-sm last:border-0 dark:border-primary-900/50">
-              <p className="font-medium">{c.name}</p>
-              <p className="text-xs text-ink-light/50 dark:text-ink-dark/50">
-                {c.issuing_organization || 'N/A'} · Issued {formatDate(c.issue_date)}
-                {c.expiry_date ? ` · Expires ${formatDate(c.expiry_date)}` : ''}
-              </p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-ink-light/50 dark:text-ink-dark/50">No certifications recorded.</p>
-      )}
+      <CertsList certs={certs} />
     </div>
   );
 }
@@ -1124,7 +1098,7 @@ function PermissionsTab({ employee }) {
       <p className="mb-4 text-xs text-ink-light/50 dark:text-ink-dark/50">
         {isAdminTierEmployee
           ? `${employee.first_name} already has full access as ${roleLabel(employee.role)} — overrides below would only matter if their role changes later.`
-          : `Grant ${employee.first_name} access to specific sections beyond what their role (${roleLabel(employee.role)}) normally allows.`}
+          : `Grant or block ${employee.first_name}'s access to specific sections. This overrides both their role (${roleLabel(employee.role)}) and the Feature Visibility toggles in Settings.`}
       </p>
 
       {sections === null || overrides === null ? (
@@ -1146,13 +1120,22 @@ function PermissionsTab({ employee }) {
                       </button>
                     </>
                   ) : (
-                    <button
-                      disabled={isBusy || isAdminTierEmployee}
-                      onClick={() => handleToggle(s.key, true)}
-                      className="btn-secondary text-xs disabled:opacity-40"
-                    >
-                      Grant access
-                    </button>
+                    <>
+                      <button
+                        disabled={isBusy || isAdminTierEmployee}
+                        onClick={() => handleToggle(s.key, true)}
+                        className="btn-secondary text-xs disabled:opacity-40"
+                      >
+                        Grant access
+                      </button>
+                      <button
+                        disabled={isBusy || isAdminTierEmployee}
+                        onClick={() => handleToggle(s.key, false)}
+                        className="btn-secondary text-xs disabled:opacity-40"
+                      >
+                        Block access
+                      </button>
+                    </>
                   )}
                 </div>
               </li>

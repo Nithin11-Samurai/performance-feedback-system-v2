@@ -107,7 +107,11 @@ function buildPrompt({ employee, cycle, feedbackEntries, skills, certifications 
 
   if (skills?.length) {
     sections.push(
-      `\nSkills on file:\n${skills.map((s) => `- [${s.category}] ${s.skill_name}: ${s.proficiency} (${s.years_experience} yrs)`).join('\n')}`
+      `\nSkills on file:\n${skills.map((s) => `- [${s.category}] ${s.skill_name}: ${
+          s.training_status === 'not_trained'
+            ? 'not trained'
+            : `${s.training_status === 'in_training' ? 'in training, ' : ''}${s.proficiency} (${s.years_experience} yrs)`
+        }`).join('\n')}`
     );
   }
 

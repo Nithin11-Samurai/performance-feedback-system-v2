@@ -28,6 +28,8 @@ router.get('/', (req, res) => {
 router.use('/auth', require('./authRoutes'));
 router.use('/users', require('./userRoutes'));
 router.use('/skills', require('./skillRoutes'));
+router.use('/skill-catalog', require('./skillCatalogRoutes'));
+router.use('/onboarding', require('./onboardingRoutes'));
 router.use('/certifications', require('./certificationRoutes'));
 router.use('/notes', require('./noteRoutes'));
 router.use('/notifications', require('./notificationRoutes'));

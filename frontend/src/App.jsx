@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FeatureFlagsProvider, useFeatureFlags } from './context/FeatureFlagsContext';
+import { OnboardingProvider } from './context/OnboardingContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { PageTitleProvider } from './context/PageTitleContext';
 import { ToastProvider } from './context/ToastContext';
@@ -28,6 +29,7 @@ import PeerInsights from './pages/PeerInsights';
 import Settings from './pages/Settings';
 import Permissions from './pages/Permissions';
 import SkillsCertsOverview from './pages/SkillsCertsOverview';
+import Onboarding from './pages/Onboarding';
 import NotFound from './pages/NotFound';
 import { ROLES, ADMIN_TIER_ROLES } from './utils/roles';
 
@@ -90,6 +92,7 @@ function AppShell() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/notifications" element={<NotificationsCenter />} />
             <Route path="/peer-insights" element={<PeerInsights />} />
             <Route path="/profile" element={<Navigate to="/dashboard" replace />} />
@@ -102,43 +105,38 @@ function AppShell() {
               }
             />
 
+            {/* My Skills, Certifications and the Skills & Certifications overview are not tied to a
+                role list: who can open them is set in Settings > Feature Visibility (Admin-tier,
+                Managers, Employees) and can be overridden per person on the Permissions page.
+                The API enforces the same rules. */}
+            <Route
+              path="/skills"
+              element={
+                <FeatureGate featureKey="skills">
+                  <Skills />
+                </FeatureGate>
+              }
+            />
+            <Route
+              path="/certifications"
+              element={
+                <FeatureGate featureKey="certifications">
+                  <Certifications />
+                </FeatureGate>
+              }
+            />
+            <Route
+              path="/skills-certs-overview"
+              element={
+                <FeatureGate featureKey="skills_certs_overview">
+                  <SkillsCertsOverview />
+                </FeatureGate>
+              }
+            />
+
             {/* Manager + Admin only */}
             <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ...ADMIN_TIER_ROLES]} />}>
               <Route path="/team" element={<Team />} />
-              <Route
-                path="/skills-certs-overview"
-                element={
-                  <FeatureGate featureKey="skills_certs_overview">
-                    <SkillsCertsOverview />
-                  </FeatureGate>
-                }
-              />
-            </Route>
-
-            {/* Admin + Global Admin only (narrower than the general Admin-tier block below) */}
-            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.GLOBAL_ADMIN]} />}>
-              {/* Skills and Certifications are restricted to just these two roles —
-                  System Admin and HR Manager do NOT see these two, unlike everything
-                  else in the Admin-tier block below. To revert to the broader
-                  Admin-tier group, change allowedRoles here to ADMIN_TIER_ROLES, or
-                  to fully re-open these to everyone, move these 2 lines down into
-                  the open block above and set their Sidebar.jsx roles back to null. */}
-              <Route
-                path="/skills"
-                element={
-                  <FeatureGate featureKey="skills">
-                    <Skills />
-                  </FeatureGate>
-                }
-              />
-              <Route
-                path="/certifications"
-                element={
-                  <FeatureGate featureKey="certifications">
-                    <Certifications />
-                  </FeatureGate>
-                }
-              />
             </Route>
 
             {/* Admin only */}
@@ -182,11 +180,13 @@ export default function App() {
         <LoadingProvider>
           <AuthProvider>
             <FeatureFlagsProvider>
-              <PageTitleProvider>
-                <BrowserRouter>
-                  <AppShell />
-                </BrowserRouter>
-              </PageTitleProvider>
+              <OnboardingProvider>
+                <PageTitleProvider>
+                  <BrowserRouter>
+                    <AppShell />
+                  </BrowserRouter>
+                </PageTitleProvider>
+              </OnboardingProvider>
             </FeatureFlagsProvider>
           </AuthProvider>
         </LoadingProvider>

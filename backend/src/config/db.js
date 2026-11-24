@@ -20,13 +20,17 @@ const poolConfig = config.db.connectionString
       password: config.db.password,
     };
 
+// Azure PostgreSQL (and most managed Postgres providers) require SSL, so it stays
+// ON by default. A PostgreSQL running on your own machine has no SSL: put
+// DB_SSL=false in backend/.env for local development to turn it off.
+// NEVER set DB_SSL in production. `rejectUnauthorized: false` accepts the
+// provider's certificate without a CA bundle, which is what we have always done.
+const useSsl = process.env.DB_SSL !== 'false';
+
 const pool = new Pool({
   ...poolConfig,
-  // Supabase (and most managed Postgres providers) require SSL when
-  // connecting via a connection string. Local/direct host connections
-  // don't need it. `rejectUnauthorized: false` is standard for Supabase's
-  // self-signed-style pooler certs.
-ssl: { rejectUnauthorized: false },  max: 20, // max simultaneous clients
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
+  max: 20, // max simultaneous clients
   // Item 4: lowered from 30s. Managed poolers (Supabase's pgbouncer-style
   // pooler especially) can silently drop idle connections from their side
   // well before our own idleTimeoutMillis would recycle them, leaving a
@@ -45,10 +49,25 @@ ssl: { rejectUnauthorized: false },  max: 20, // max simultaneous clients
 // while you expect DATABASE_URL to be set, the .env change hasn't been
 // picked up yet (most commonly: the process wasn't restarted after
 // editing .env — env vars are only read once, at startup).
+// Which database is this process really talking to? Printed without the password,
+// so it is safe to read out of logs and terminals. Check it before running anything
+// that changes data (for example `npm run migrate`).
+function describeTarget() {
+  if (config.db.connectionString) {
+    try {
+      const url = new URL(config.db.connectionString);
+      return { host: url.hostname, database: decodeURIComponent(url.pathname.replace(/^\//, '')) };
+    } catch (err) {
+      return { host: '(from DATABASE_URL)', database: '(could not read it)' };
+    }
+  }
+  return { host: config.db.host, database: config.db.database };
+}
+
 logger.info('Database pool configured', {
   usingConnectionString: Boolean(config.db.connectionString),
-sslEnabled: true,
-  host: config.db.connectionString ? '(from DATABASE_URL)' : config.db.host,
+  sslEnabled: useSsl,
+  ...describeTarget(),
 });
 
 pool.on('error', (err) => {

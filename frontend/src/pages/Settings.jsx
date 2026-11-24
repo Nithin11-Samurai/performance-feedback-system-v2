@@ -6,6 +6,7 @@ import * as catalogService from '../services/catalogService';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Skeleton from '../components/Skeleton';
 import FeatureVisibilitySettings from '../components/FeatureVisibilitySettings';
+import SkillCatalogSettings from '../components/SkillCatalogSettings';
 
 function CatalogList({ title, icon: Icon, items, itemKey, onAdd, onDelete, placeholder }) {
   const [value, setValue] = useState('');
@@ -130,6 +131,7 @@ export default function Settings() {
         dropdowns when creating or editing an employee.
       </p>
       <FeatureVisibilitySettings />
+      <SkillCatalogSettings />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <CatalogList

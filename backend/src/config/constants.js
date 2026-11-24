@@ -83,6 +83,12 @@ const SKILL_CATEGORIES = Object.freeze({
   OTHER: 'other',
 });
 
+const TRAINING_STATUS = Object.freeze({
+  NOT_TRAINED: 'not_trained',
+  IN_TRAINING: 'in_training',
+  TRAINED: 'trained',
+});
+
 const PROFICIENCY_LEVELS = Object.freeze({
   BEGINNER: 'beginner',
   INTERMEDIATE: 'intermediate',
@@ -159,6 +165,7 @@ module.exports = {
   NOTIFICATION_TYPE,
   SKILL_CATEGORIES,
   PROFICIENCY_LEVELS,
+  TRAINING_STATUS,
   FEEDBACK_CATEGORIES,
   LIKERT_SCALE,
 };

@@ -96,4 +96,28 @@ function requireSectionAccess(sectionKey) {
   });
 }
 
-module.exports = { authenticate, authorize, authorizeSelfOrRoles, requireSectionAccess };
+/**
+ * Gate "my own" use of a feature (My Skills / Certifications) on the
+ * Settings toggles and per-person overrides. Only applies when the person
+ * is acting on their OWN records; viewing or editing someone else's (a
+ * manager looking at a report, HR editing an employee) stays governed by
+ * the existing view/edit rules in the services.
+ */
+function requireOwnFeature(featureKey, paramName = 'userId') {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+      return next(AppError.unauthorized());
+    }
+    if (req.params[paramName] !== req.user.id) {
+      return next();
+    }
+    const featureAccessService = require('../services/featureAccessService');
+    const allowed = await featureAccessService.hasFeatureAccess(req.user, featureKey);
+    if (!allowed) {
+      return next(AppError.forbidden('This section is not enabled for you. Contact HR if you need access.'));
+    }
+    next();
+  });
+}
+
+module.exports = { authenticate, authorize, authorizeSelfOrRoles, requireSectionAccess, requireOwnFeature };
